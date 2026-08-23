@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Notes App',
-        short_name: 'Notes',
-        description: 'A modern, responsive notes application.',
+        name: 'Papertrail',
+        short_name: 'Papertrail',
+        description: 'A modern, elegant full-stack notes application.',
         theme_color: '#1a1a1a',
         background_color: '#121212',
         display: 'standalone',
