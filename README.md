@@ -1,6 +1,8 @@
-# 📝 Papertrail — Full-Stack Notes Application
+# 📝 Papertrail - Full-Stack Notes Application
 
-A modern, full-stack notes app built with **Django REST Framework** and **React 19**. Create, edit, pin, and organize your notes with a beautiful dark-mode UI — backed by MongoDB Atlas.
+A modern, full-stack notes app built with **Django REST Framework** and **React 19**. Create, edit, pin, and organize your notes with a beautiful dark-mode UI - backed by MongoDB Atlas.
+
+🔗 **Live Demo:** [papertrail-note.vercel.app](https://papertrail-note.vercel.app)
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue?logo=python)
 ![Django](https://img.shields.io/badge/Django-4.2-green?logo=django)
@@ -12,14 +14,14 @@ A modern, full-stack notes app built with **Django REST Framework** and **React 
 
 ## ✨ Features
 
-- **JWT Authentication** — Secure register & login with token-based auth
-- **CRUD Notes** — Create, read, update, and delete notes
-- **Pin Notes** — Keep important notes at the top
-- **Checklists** — Convert notes into interactive checklists with checkable items
-- **Dark Mode** — Elegant theme toggle with localStorage persistence
-- **Responsive Design** — Fully responsive across mobile, tablet, and desktop
-- **Quick Create** — Rapidly add notes from an inline form
-- **Beautiful UI** — Modern glassmorphism, smooth animations, and polished design
+- **JWT Authentication** - Secure register & login with token-based auth
+- **CRUD Notes** - Create, read, update, and delete notes
+- **Pin Notes** - Keep important notes at the top
+- **Checklists** - Convert notes into interactive checklists with checkable items
+- **Dark Mode** - Elegant theme toggle with localStorage persistence
+- **Responsive Design** - Fully responsive across mobile, tablet, and desktop
+- **Quick Create** - Rapidly add notes from an inline form
+- **Beautiful UI** - Modern glassmorphism, smooth animations, and polished design
 
 ---
 
@@ -30,7 +32,7 @@ A modern, full-stack notes app built with **Django REST Framework** and **React 
 | **Frontend** | React 19, Vite 7, React Router 7, Axios  |
 | **Backend**  | Django 4.2, Django REST Framework         |
 | **Database** | MongoDB Atlas (via MongoEngine)           |
-| **Auth**     | JWT (PyJWT) — custom token implementation |
+| **Auth**     | JWT (PyJWT) - custom token implementation |
 | **Styling**  | Vanilla CSS with CSS variables & themes   |
 
 ---
@@ -90,8 +92,8 @@ notes/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/ARShaikh0801/Papertrail.git
-cd Papertrail
+git clone https://github.com/ARShaikh0801/papertrail-note.git
+cd papertrail-note
 ```
 
 ### 2. Backend Setup
