@@ -1,5 +1,5 @@
-import React,{useState,useRef} from 'react';
-import '../styles/ChecklistBuilder.css'
+import React, { useRef, useEffect } from 'react';
+import '../styles/ChecklistBuilder.css';
 
 const UncheckedIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 25 23">
@@ -22,61 +22,89 @@ const CheckedIcon = () => (
  *
  * Props:
  *  items        — [{ text, checked }]
- *  onAdd        — (text) => void
+ *  onAddAtIndex — (index, text) => void
  *  onRemove     — (index) => void
- *  onToggle     — (index) => void   (optional — omit in create mode)
+ *  onToggle     — (index) => void
+ *  onTextChange — (index, text) => void
  *  bottomRef    — ref for auto-scroll anchor
  */
-function ChecklistBuilder({ items, onAdd, onRemove, onToggle, bottomRef }) {
-    const [inputVal, setInputVal] = useState('');
+function ChecklistBuilder({ items, onAddAtIndex, onRemove, onToggle, onTextChange, bottomRef }) {
     const listRef = useRef(null);
+    const inputRefs = useRef([]);
+    const focusIndexRef = useRef(null);
 
-    const handleKeyDown = (e) => {
+    useEffect(() => {
+        if (focusIndexRef.current !== null) {
+            const el = inputRefs.current[focusIndexRef.current];
+            if (el) {
+                el.focus();
+            }
+            focusIndexRef.current = null;
+        }
+    }, [items]);
+
+    const handleKeyDown = (i, e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
-            const val = inputVal.trim();
-            if (val) {
-                onAdd(val);
-                setInputVal('');
-                setTimeout(() => {
-                    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
-                }, 50);
+            onAddAtIndex(i + 1, '');
+            focusIndexRef.current = i + 1;
+        } else if (e.key === 'Backspace' && items[i].text === '') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (items.length > 1) {
+                onRemove(i);
+                focusIndexRef.current = i - 1 >= 0 ? i - 1 : 0;
             }
         }
     };
 
     return (
         <div className="checklist-builder">
-            <input
-                type="text"
-                className="item-input"
-                placeholder="Type item and press Enter…"
-                value={inputVal}
-                onChange={e => setInputVal(e.target.value)}
-                onKeyDown={handleKeyDown}
-                autoFocus
-            />
             <ul className="items-preview" ref={listRef}>
                 {items.map((item, i) => (
                     <React.Fragment key={i}>
-                        <li
-                            className={item.checked ? 'checked-item' : ''}
-                            onClick={() => onToggle?.(i)}
-                        >
-                            <span className={`check-dot ${onToggle ? 'clickable' : ''}`}>
+                        <li className={item.checked ? 'checked-item' : ''}>
+                            <span 
+                                className={`check-dot ${onToggle ? 'clickable' : ''}`}
+                                onClick={() => onToggle?.(i)}
+                            >
                                 {item.checked ? <CheckedIcon /> : <UncheckedIcon />}
                             </span>
-                            <span>
-                                {item.checked ? <s>{item.text}</s> : item.text}
-                            </span>
-                            <button className="remove-item-btn" onClick={(e) => { e.stopPropagation(); onRemove(i); }}>
+                            <input
+                                ref={el => { inputRefs.current[i] = el; }}
+                                type="text"
+                                className="checklist-inline-input"
+                                placeholder="List item"
+                                value={item.text}
+                                onChange={(e) => onTextChange(i, e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(i, e)}
+                                style={{
+                                    textDecoration: item.checked ? 'line-through' : 'none',
+                                    opacity: item.checked ? 0.6 : 1
+                                }}
+                            />
+                            <button 
+                                className="remove-item-btn" 
+                                onClick={(e) => { e.stopPropagation(); onRemove(i); }}
+                                tabIndex="-1"
+                            >
                                 &times;
                             </button>
                         </li>
                         <hr className="item-seperator" />
                     </React.Fragment>
                 ))}
+                <div 
+                    className="add-item-row" 
+                    onClick={() => { 
+                        onAddAtIndex(items.length, ''); 
+                        focusIndexRef.current = items.length; 
+                    }}
+                >
+                    <span className="add-item-icon">+</span>
+                    <span style={{ fontSize: '0.9rem' }}>Add item</span>
+                </div>
                 <div ref={bottomRef} />
             </ul>
         </div>

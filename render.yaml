@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: papertrail-backend
+    runtime: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn notes.wsgi:application
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: ALLOWED_HOSTS
+        value: "localhost,127.0.0.1,.onrender.com"
+      - key: PYTHON_VERSION
+        value: 3.11.9

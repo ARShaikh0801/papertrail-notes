@@ -14,9 +14,11 @@ function QuickCreateForm({ onCreated, apiPost }) {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     
+    const textareaRef = useRef(null);
+    const checklistInputRef = useRef(null);
     
     const setVisibility = () => {
-        if((!isChecklist && content.trim() !== '') || (isChecklist && items.length > 0)){
+        if((!isChecklist && content.trim() !== '') || (isChecklist && items.length > 0 && items.some(item => item.text.trim() !== ''))){
             setShouldShow(true);
         }
         else{
@@ -26,11 +28,55 @@ function QuickCreateForm({ onCreated, apiPost }) {
 
     useEffect(setVisibility,[items,content]);
 
+    useEffect(() => {
+        if (isChecklist && items.length === 0) {
+            setItems([{ text: '', checked: false }]);
+        }
+    }, [isChecklist]);
+
+    useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+            const active = document.activeElement;
+            const isTyping = active && (
+                active.tagName === 'INPUT' ||
+                active.tagName === 'TEXTAREA' ||
+                active.isContentEditable
+            );
+
+            if (e.key === '/' && !isTyping) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (isChecklist) {
+                    checklistInputRef.current?.focus();
+                } else {
+                    textareaRef.current?.focus();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleGlobalKeyDown);
+        };
+    }, [isChecklist]);
+
     
 
 
-    const addItem = (text) => setItems(prev => [...prev, { text, checked: false }]);
-    const removeItem = (i) => setItems(prev => prev.filter((_, idx) => idx !== i));
+    const addItemAtIndex = (index, text) => {
+        setItems(prev => {
+            const newItems = [...prev];
+            newItems.splice(index, 0, { text, checked: false });
+            return newItems;
+        });
+    };
+    const setItemText = (index, text) => {
+        setItems(prev => prev.map((item, idx) => idx === index ? { ...item, text } : item));
+    };
+    const removeItem = (i) => setItems(prev => {
+        const remaining = prev.filter((_, idx) => idx !== i);
+        return remaining.length > 0 ? remaining : [{ text: '', checked: false }];
+    });
 
     const toggleItem = (i) => setItems(prev =>
         prev.map((item, idx) => idx === i ? { ...item, checked: !item.checked } : item)
@@ -90,17 +136,21 @@ function QuickCreateForm({ onCreated, apiPost }) {
             </label>
 
             {isChecklist ? (
-
-                <ChecklistBuilder
-                    items={items}
-                    onAdd={addItem}
-                    onRemove={removeItem}
-                    onToggle={toggleItem}
-                    bottomRef={null}
-                />
+                <div className="quick-form-scrollable-body">
+                    <ChecklistBuilder
+                        items={items}
+                        onAddAtIndex={addItemAtIndex}
+                        onRemove={removeItem}
+                        onToggle={toggleItem}
+                        onTextChange={setItemText}
+                        bottomRef={null}
+                        inputRef={checklistInputRef}
+                    />
+                </div>
 
             ) : (
                 <textarea
+                    ref={textareaRef}
                     placeholder="Take a Note…"
                     value={content}
                     onChange={e => setContent(e.target.value)}

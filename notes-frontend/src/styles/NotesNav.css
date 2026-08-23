@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.1rem 2.5rem;
+  padding: 0.7rem 2.5rem;
   background: var(--nav-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -215,4 +215,154 @@ button:disabled {
     font-size: 0.82rem;
     padding: 0.5rem 1.8rem 0.5rem 0.7rem;
   }
+}
+
+/* ─────────────────────────────
+   LOGO PEN & USER DROPDOWN
+   ───────────────────────────── */
+.logo-pen-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 -0.12em;
+  transform: rotate(15deg) translateY(-2px);
+  opacity: 0.9;
+}
+
+.user-dropdown-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: transparent;
+  border: 1.5px solid transparent !important;
+  color: var(--ink);
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+  animation: none !important;
+  height: 38px;
+  padding: 0 0.8rem;
+  margin: 0 !important;
+}
+
+.dropdown-trigger:hover,
+.dropdown-trigger[aria-expanded="true"] {
+  background: rgba(160, 82, 45, 0.05);
+  border-color: var(--rust) !important;
+  color: var(--rust);
+}
+
+.chevron-icon {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.chevron-icon.open {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: var(--paper);
+  border: 1.5px solid var(--nav-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px var(--nav-shadow);
+  z-index: 1000;
+  min-width: 150px;
+  padding: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.dropdown-item {
+  background: transparent;
+  border: none !important;
+  width: 100%;
+  padding: 0.55rem 1rem !important;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-muted) !important;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  transition: background-color 0.15s, color 0.15s;
+  box-shadow: none !important;
+  margin: 0 !important;
+  display: block;
+}
+
+.dropdown-item.logout-btn {
+  width: calc(100% - 1.2rem) !important;
+  margin: 0.3rem 0.6rem !important;
+  padding: 0.45rem 1.1rem !important;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-muted) !important;
+  background: transparent !important;
+  border: 1.5px solid var(--separator) !important;
+  border-radius: 3px !important;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.dropdown-item.logout-btn:hover {
+  color: var(--rust) !important;
+  border-color: var(--rust) !important;
+  background: rgba(160, 82, 45, 0.05) !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  transition: background-color 0.3s ease;
+}
+
+.status-dot.online {
+  background-color: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+.status-dot.offline {
+  background-color: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+  animation: pulse-offline 1.5s infinite;
+}
+
+@keyframes pulse-offline {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
 }

@@ -32,6 +32,24 @@ const PinIcon = () => (
     </svg>
 );
 
+const LockIcon = () => (
+    <svg className="lock-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <rect x="4.75" y="10" width="14.5" height="10.75" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+  <path d="M7.75 10V6.75a4.25 4.25 0 0 1 8.5 0V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <circle cx="12" cy="14.75" r="1" fill="currentColor"/>
+  <path d="M12 15.75V17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+</svg>
+);
+
+const UnlockIcon = () => (
+    <svg className="lock-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <rect x="4.75" y="10" width="14.5" height="10.75" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+  <path d="M16.25 10V6.75A4.25 4.25 0 0 0 8.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <circle cx="12" cy="14.75" r="1" fill="currentColor"/>
+  <path d="M12 15.75V17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+</svg>
+);
+
 /**
  * NoteCard
  *
@@ -42,7 +60,7 @@ const PinIcon = () => (
  *  onPin       — (e, note) => void
  *  onDelete    — (e, id) => void
  */
-function NoteCard({ note, index, onEdit, onPin, pinLoading, onDelete, delLoading }) {
+function NoteCard({ note, index, onEdit, onPin, pinLoading, onDelete, delLoading, onLockToggle }) {
     const truncatedTitle = note.title.length > 27
         ? note.title.slice(0, 27) + '…'
         : note.title;
@@ -50,7 +68,7 @@ function NoteCard({ note, index, onEdit, onPin, pinLoading, onDelete, delLoading
     return (
         <div
             onClick={() => onEdit(note)}
-            className={`notes-cards ${note.is_pinned ? 'pinned-note' : 'not-pinned-note'}`}
+            className={`notes-cards ${note.is_pinned ? 'pinned-note' : 'not-pinned-note'} ${note.is_locked ? 'locked-note' : ''}`}
             style={{ animationDelay: `${index * 0.05}s` }}
         >
             {/* Header */}
@@ -59,6 +77,14 @@ function NoteCard({ note, index, onEdit, onPin, pinLoading, onDelete, delLoading
                     {note.is_pinned && <PinIcon />}
                     {truncatedTitle}
                 </h3>
+                <div 
+                    className={`note-lock-status ${note.is_locked ? 'locked' : 'unlocked'}`} 
+                    onClick={(e) => onLockToggle(e, note)} 
+                    style={{ cursor: 'pointer' }}
+                    title={note.is_locked ? "Unlock this note" : "Lock this note"}
+                >
+                    {note.is_locked ? <LockIcon /> : <UnlockIcon />}
+                </div>
             </div>
 
             {/* Body — checklist or plain text */}

@@ -67,6 +67,14 @@
     0 0 0 1.5px var(--separator);
 }
 
+.locked-note {
+  background: var(--locked-bg);
+}
+
+.pinned-note.locked-note {
+  background: var(--locked-pinned-bg);
+}
+
 .pinned-note h3 {
   margin-left: 1rem;
 }
@@ -108,6 +116,87 @@
   position: fixed;
   top: 1.5rem;
   left: 1rem;
+}
+
+.note-lock-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--amber);
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--paper);
+  border: 1px solid var(--input-border);
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.note-lock-status:hover {
+  background: var(--amber-pale);
+  border-color: var(--amber);
+  transform: scale(1.06);
+}
+
+.note-lock-status:active {
+  transform: scale(0.94);
+}
+
+.note-lock-status.unlocked {
+  background: #e8f5e9;
+  border-color: #c8e6c9;
+  color: #2e7d32;
+}
+
+.note-lock-status.unlocked:hover {
+  background: #c8e6c9;
+  border-color: #a5d6a7;
+  color: #1b5e20;
+}
+
+.note-lock-status.locked {
+  background: #ffebee;
+  border-color: #ffcdd2;
+  color: #c62828;
+}
+
+.note-lock-status.locked:hover {
+  background: #ffcdd2;
+  border-color: #ef9a9a;
+  color: #b71c1c;
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] .note-lock-status.unlocked {
+  background: #1b382b;
+  border-color: #2e5c45;
+  color: #81c784;
+}
+
+[data-theme="dark"] .note-lock-status.unlocked:hover {
+  background: #244b39;
+  border-color: #387255;
+  color: #a5d6a7;
+}
+
+[data-theme="dark"] .note-lock-status.locked {
+  background: #3d1c1c;
+  border-color: #612c2c;
+  color: #e57373;
+}
+
+[data-theme="dark"] .note-lock-status.locked:hover {
+  background: #522525;
+  border-color: #7a3737;
+  color: #ef9a9a;
+}
+
+.note-header svg.lock-icon {
+  position: static;
+  margin: 0;
 }
 
 .checklist-display {

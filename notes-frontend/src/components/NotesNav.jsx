@@ -1,6 +1,9 @@
+import { useState, useRef, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import '../styles/NotesNav.css'
 import Spinner from './Spinner.jsx'
 import ThemeToggle from './ThemeToggle.jsx'
+
 /**
  * NotesNav
  *
@@ -11,7 +14,20 @@ import ThemeToggle from './ThemeToggle.jsx'
  *  onClear       — () => void
  *  onLogout      — () => void
  */
-function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLoading }) {
+function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLoading, isOnline }) {
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setDropdownOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     return (
         <nav className="notes-nav">
 
@@ -24,7 +40,10 @@ function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLo
                     <path opacity="0.4" d="M8 11H16" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
                     <path opacity="0.4" d="M8 16H12" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                {username}'s Notes
+                Paper<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="logo-pen-icon">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>trail
             </h2>
 
             {/* Search */}
@@ -41,12 +60,36 @@ function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLo
                 </div>
             </div>
 
-            {/* Theme + Logout */}
+            {/* Theme + Logout Dropdown */}
             <div className="nav-actions">
+                <span className={`status-dot ${isOnline ? 'online' : 'offline'}`} title={isOnline ? 'Online' : 'Offline'}></span>
                 <ThemeToggle />
-                <button onClick={onLogout} disabled={logOutLoading}>
-                    {logOutLoading ? <><Spinner />&nbsp;Logging Out…</> : 'Logout'}
-                </button>
+                {username === 'Guest' ? (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <Link to="/login" className="dropdown-trigger" style={{ textDecoration: 'none' }}>Log In</Link>
+                        <Link to="/register" className="dropdown-trigger" style={{ textDecoration: 'none', background: 'var(--rust)', color: 'var(--warm-white)' }}>Sign Up</Link>
+                    </div>
+                ) : (
+                    <div className="user-dropdown-container" ref={dropdownRef}>
+                        <button 
+                            className="dropdown-trigger" 
+                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                            aria-expanded={dropdownOpen}
+                        >
+                            <span>Welcome, {username}</span>
+                            <svg className={`chevron-icon ${dropdownOpen ? 'open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        {dropdownOpen && (
+                            <div className="dropdown-menu">
+                                <button className="dropdown-item logout-btn" onClick={onLogout} disabled={logOutLoading}>
+                                    {logOutLoading ? <><Spinner />&nbsp;Logging Out…</> : 'Logout'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
         </nav>

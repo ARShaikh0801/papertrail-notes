@@ -52,10 +52,33 @@ function Login() {
             ]);
             if (data.token) localStorage.setItem('token', data.token);
             if (data.username) localStorage.setItem('username', data.username);
+            
+            // Migrate guest notes
+            const guestNotes = localStorage.getItem('guest_notes');
+            if (guestNotes) {
+                try {
+                    const notesArray = JSON.parse(guestNotes);
+                    if (notesArray && notesArray.length > 0) {
+                        await Promise.all(notesArray.map(note =>
+                            api.post('/notes/', {
+                                title: note.title,
+                                content: note.content,
+                                is_checklist: note.is_checklist,
+                                is_pinned: note.is_pinned || false,
+                                items: note.items ? note.items.map(item => ({ text: item.text, checked: item.checked })) : []
+                            })
+                        ));
+                    }
+                    localStorage.removeItem('guest_notes');
+                } catch (migrateErr) {
+                    console.error("Failed to migrate guest notes:", migrateErr);
+                }
+            }
+
             navigate('/notes');
         } catch (err) {
             await minDelay;
-            setError(err.response?.data?.error_view || 'Something went wrong');
+            setError(err.response?.data?.detail || err.response?.data?.error_view || 'Something went wrong');
         } finally {
             setIsLoading(false);
         }

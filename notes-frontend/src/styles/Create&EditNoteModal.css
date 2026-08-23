@@ -21,6 +21,9 @@
   padding: 2.2rem 2.4rem 2rem;
   width: 100%;
   max-width: 460px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
   position: relative;
   box-shadow:
     0 2px 8px var(--shadow-warm),
@@ -30,6 +33,7 @@
   cursor: url('/cursor2.svg') 4 4, default;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.30'/%3E%3C/svg%3E");
   transition: background-color 0.3s ease;
+  overflow: hidden;
 }
 
 /* Amber top accent on modal */
@@ -58,6 +62,8 @@
 
 .note-form textarea {
   scrollbar-color: var(--amber) transparent;
+  flex-grow: 1;
+  min-height: 220px;
 }
 
 .note-form input::placeholder,
@@ -113,6 +119,52 @@
 .note-form>button:last-child:active {
   transform: translateY(1px);
   box-shadow: 0 2px 8px rgba(160, 82, 45, 0.25);
+}
+
+/* ─────────────────────────────
+   REUSABLE MODAL BUTTONS
+───────────────────────────── */
+.modal-btn {
+  padding: 0.85rem 1.5rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.modal-btn-primary {
+  color: var(--warm-white);
+  background: linear-gradient(135deg, var(--amber) 0%, var(--rust) 100%);
+  border: none;
+  box-shadow: 0 3px 12px rgba(160, 82, 45, 0.30);
+}
+
+.modal-btn-primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  background: linear-gradient(170deg, var(--amber) 25%, var(--rust) 60%);
+  box-shadow: 0 5px 18px rgba(160, 82, 45, 0.38);
+}
+
+.modal-btn-primary:active {
+  transform: translateY(1px);
+}
+
+.modal-btn-secondary {
+  background: transparent;
+  border: 1.5px solid var(--separator);
+  color: var(--ink-muted);
+}
+
+.modal-btn-secondary:hover {
+  background: rgba(200, 136, 58, 0.08);
 }
 
 .note-form input[type="text"],
@@ -202,6 +254,29 @@
   box-shadow: none !important;
 }
 
+.modal-close-btn-header {
+  width: 30px;
+  height: 30px;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  background: rgba(160, 82, 45, 0.1);
+  border: none;
+  border-radius: 3px;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  transition: color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+}
+
+.modal-close-btn-header:hover {
+  color: var(--rust);
+  background: rgba(160, 82, 45, 0.15);
+}
+
+
 /* ─────────────────────────────
    ERROR LINE
 ───────────────────────────── */
@@ -275,9 +350,30 @@ button:disabled {
    RESPONSIVE — MOBILE
 ───────────────────────────── */
 @media (max-width: 480px) {
-  .note-form {
-    max-width: calc(100% - 2rem);
-    padding: 1.5rem 1.2rem 1.5rem;
+  /* Edit/Create note modals take whole screen on mobile */
+  .modal-overlay:not(.password-modal-overlay) {
+    align-items: stretch;
+  }
+
+  .modal-overlay:not(.password-modal-overlay) .note-form:not(.password-note-form) {
+    max-width: 100%;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 2.2rem 1.5rem;
+  }
+
+  .modal-overlay:not(.password-modal-overlay) .note-form:not(.password-note-form)::before {
+    border-radius: 0;
+  }
+
+  /* Make textarea expand dynamically in the full-screen view */
+  .modal-overlay:not(.password-modal-overlay) .note-form:not(.password-note-form) textarea {
+    flex-grow: 1;
+    min-height: 250px;
+    margin-bottom: 1.5rem;
   }
 
   .note-form-header h3 {
@@ -293,5 +389,16 @@ button:disabled {
   .note-form > button:last-child {
     padding: 0.7rem 1rem;
     font-size: 0.82rem;
+  }
+
+  /* Shift password modals to the top of screen with margin to avoid keyboard occlusion */
+  .password-modal-overlay {
+    align-items: flex-start !important;
+    padding-top: 12vh !important;
+  }
+
+  .password-note-form {
+    max-width: calc(100% - 2rem) !important;
+    margin: 0 auto !important;
   }
 }

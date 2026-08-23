@@ -16,6 +16,14 @@
   transition: background-color 0.3s ease;
 }
 
+.quick-form-scrollable-body {
+  max-height: 45vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--amber) transparent;
+  margin-bottom: 1rem;
+}
+
 @keyframes modalIn {
   from {
     opacity: 0;

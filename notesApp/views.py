@@ -1,29 +1,39 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import User, Note, ChecklistItem
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import ScopedRateThrottle
+from .models import User, Note, ChecklistItem, Stats
 from .serializers import RegisterSerializer, LoginSerializer, NoteSerializer
-from .utils import generate_token, decode_token, get_current_utc_time
+from .utils import generate_token, get_current_utc_time
 import datetime
 
 
-def get_current_user(request):
-    """Extract user from JWT token in Authorization header"""
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return None, 'No token provided'
-    token = auth_header.split(' ')[1]
-    payload, error = decode_token(token)
-    if error:
-        return None, error
-    try:
-        user = User.objects.get(id=payload['user_id'])
-        return user, None
-    except User.DoesNotExist:
-        return None, 'User not found'
+class StatsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        try:
+            visitor_stats = Stats.objects.get(name='visitors')
+        except Stats.DoesNotExist:
+            visitor_stats = Stats(name='visitors', count=0)
+        
+        if request.query_params.get('inc') == 'true':
+            visitor_stats.count += 1
+            visitor_stats.save()
+        
+        user_count = User.objects.count()
+        return Response({
+            'visitors': visitor_stats.count,
+            'users': user_count
+        })
 
 
 class RegisterView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'sensitive'
+
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
@@ -39,12 +49,15 @@ class RegisterView(APIView):
 
         user = User(username=data['username'], email=data['email'])
         user.set_password(data['password'])
-        print(user.id)
         token = generate_token(user.id, user.username)
         return Response({'token': token, 'username': user.username}, status=201)
 
 
 class LoginView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'sensitive'
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
@@ -61,20 +74,14 @@ class LoginView(APIView):
 
 
 class NoteListCreateView(APIView):
-    def get(self, request):
-        user, error = get_current_user(request)
-        if error:
-            return Response({'error': error}, status=401)
+    permission_classes = [IsAuthenticated]
 
-        notes = Note.objects(user=user.username).order_by('-is_pinned', '-created_at')
+    def get(self, request):
+        notes = Note.objects(user=request.user.username).order_by('-is_pinned', '-created_at')
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        user, error = get_current_user(request)
-        if error:
-            return Response({'error': error}, status=401)
-
         serializer = NoteSerializer(data=request.data)
         raw_items = request.data.get('items', [])
         checklist_items = [ChecklistItem(text=i['text'], checked=i.get('checked', False)) for i in raw_items]
@@ -84,7 +91,7 @@ class NoteListCreateView(APIView):
 
         data = serializer.validated_data
         note = Note(
-            user=user.username,
+            user=request.user.username,
             title=data['title'],
             content=data['content'],
             is_pinned=data.get('is_pinned', False),
@@ -96,13 +103,11 @@ class NoteListCreateView(APIView):
 
 
 class NoteDetailView(APIView):
-    def patch(self, request, note_id):
-        user, error = get_current_user(request)
-        if error:
-            return Response({'error': error}, status=401)
+    permission_classes = [IsAuthenticated]
 
+    def patch(self, request, note_id):
         try:
-            note = Note.objects.get(id=note_id, user=user.username)
+            note = Note.objects.get(id=note_id, user=request.user.username)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
@@ -112,7 +117,6 @@ class NoteDetailView(APIView):
         if 'is_checklist' in data:
             note.is_checklist = data['is_checklist']
         if 'items' in data:
-            from .models import ChecklistItem
             note.items = [ChecklistItem(text=i['text'], checked=i.get('checked', False)) for i in data['items']]
         if 'content' in data:
             note.content = data['content']
@@ -124,14 +128,71 @@ class NoteDetailView(APIView):
         return Response(NoteSerializer(note).data)
 
     def delete(self, request, note_id):
-        user, error = get_current_user(request)
-        if error:
-            return Response({'error': error}, status=401)
-
         try:
-            note = Note.objects.get(id=note_id, user=user.username)
+            note = Note.objects.get(id=note_id, user=request.user.username)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
         note.delete()
         return Response({'message': 'Note deleted'}, status=204)
+
+
+class NoteLockView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, note_id):
+        try:
+            note = Note.objects.get(id=note_id, user=request.user.username)
+        except Note.DoesNotExist:
+            return Response({'error': 'Note not found'}, status=404)
+
+        password = request.data.get('password')
+        if not password:
+            return Response({'error': 'Password is required'}, status=400)
+
+        if request.user.check_password(password):
+            note.is_locked = True
+            note.save()
+            return Response(NoteSerializer(note).data)
+        else:
+            return Response({'error': 'Incorrect password'}, status=403)
+
+
+class NoteUnlockView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, note_id):
+        try:
+            note = Note.objects.get(id=note_id, user=request.user.username)
+        except Note.DoesNotExist:
+            return Response({'error': 'Note not found'}, status=404)
+
+        password = request.data.get('password')
+        if not password:
+            return Response({'error': 'Password is required'}, status=400)
+
+        if request.user.check_password(password):
+            return Response(NoteSerializer(note, context={'bypass_lock': True}).data)
+        else:
+            return Response({'error': 'Incorrect password'}, status=403)
+
+
+class NoteRemoveLockView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, note_id):
+        try:
+            note = Note.objects.get(id=note_id, user=request.user.username)
+        except Note.DoesNotExist:
+            return Response({'error': 'Note not found'}, status=404)
+
+        password = request.data.get('password')
+        if not password:
+            return Response({'error': 'Password is required'}, status=400)
+
+        if request.user.check_password(password):
+            note.is_locked = False
+            note.save()
+            return Response(NoteSerializer(note).data)
+        else:
+            return Response({'error': 'Incorrect password'}, status=403)

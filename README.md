@@ -102,12 +102,12 @@ python -m venv notesvenv
 notesvenv\Scripts\activate        # Windows
 # source notesvenv/bin/activate   # macOS/Linux
 
-# Install dependencies
-pip install django djangorestframework django-cors-headers mongoengine python-dotenv PyJWT
+# Install dependencies from requirements.txt
+pip install -r requirements.txt
 
 # Create your .env file from the template
 cp .env.example .env
-# Edit .env with your MongoDB URI and a secure SECRET_KEY
+# Edit .env with your MongoDB URI, SECRET_KEY, and other configuration variables
 
 # Run the Django server
 python manage.py runserver
@@ -174,11 +174,13 @@ The app will be available at **http://localhost:5173**
 
 ## 🛡️ Environment Variables
 
-| Variable     | Description                         |
-|--------------|-------------------------------------|
-| `MONGO_URI`  | MongoDB Atlas connection string     |
-| `SECRET_KEY` | Django secret key (used for JWT)    |
-| `DEBUG`      | Set to `True` for development       |
+| Variable                 | Description                                                 | Default / Example                                                |
+|--------------------------|-------------------------------------------------------------|------------------------------------------------------------------|
+| `MONGO_URI`              | MongoDB Atlas connection string                             | `mongodb+srv://...`                                              |
+| `SECRET_KEY`             | Django secret key (used for hashing & JWT signing)          | `django-insecure-...`                                            |
+| `DEBUG`                  | Enable/disable debug mode (use `False` in production)        | `True`                                                           |
+| `CORS_ALLOWED_ORIGINS`   | Comma-separated list of backend CORS allowed origins        | `http://localhost:5173,http://localhost:4173`                    |
+| `ALLOWED_HOSTS`          | Comma-separated list of allowed host header domains         | `localhost,127.0.0.1`                                            |
 
 See [`.env.example`](.env.example) for a template.
 
