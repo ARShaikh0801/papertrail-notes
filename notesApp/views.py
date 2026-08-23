@@ -7,6 +7,10 @@ from .models import User, Note, ChecklistItem, Stats
 from .serializers import RegisterSerializer, LoginSerializer, NoteSerializer
 from .utils import generate_token, get_current_utc_time
 import datetime
+from django.http import JsonResponse
+
+def health_check(request):
+    return JsonResponse({'status': 'healthy'})
 
 
 class StatsView(APIView):
