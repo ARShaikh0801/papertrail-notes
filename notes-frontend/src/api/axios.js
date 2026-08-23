@@ -5,7 +5,10 @@ const getBaseURL = () => {
     if (hostname.includes('devtunnels.ms')) {
         return `${origin.replace('-5173', '-8000').replace('-4173', '-8000')}/api`;
     }
-    return 'http://127.0.0.1:8000/api';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://127.0.0.1:8000/api';
+    }
+    return 'https://papertrail-y11g.onrender.com/api';
 };
 
 const api = axios.create({
