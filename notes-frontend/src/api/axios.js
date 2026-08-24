@@ -8,7 +8,7 @@ const getBaseURL = () => {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return 'http://127.0.0.1:8000/api';
     }
-    return 'https://papertrail-note.onrender.com/api';
+    return 'https://papertrail-notes.onrender.com/api';
 };
 
 const api = axios.create({

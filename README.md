@@ -2,7 +2,7 @@
 
 A modern, full-stack notes app built with **Django REST Framework** and **React 19**. Create, edit, pin, and organize your notes with a beautiful dark-mode UI - backed by MongoDB Atlas.
 
-🔗 **Live Demo:** [papertrail-note.vercel.app](https://papertrail-note.vercel.app)
+🔗 **Live Demo:** [papertrail-notes.vercel.app](https://papertrail-notes.vercel.app)
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue?logo=python)
 ![Django](https://img.shields.io/badge/Django-4.2-green?logo=django)
@@ -92,8 +92,8 @@ notes/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/ARShaikh0801/papertrail-note.git
-cd papertrail-note
+git clone https://github.com/ARShaikh0801/papertrail-notes.git
+cd papertrail-notes
 ```
 
 ### 2. Backend Setup

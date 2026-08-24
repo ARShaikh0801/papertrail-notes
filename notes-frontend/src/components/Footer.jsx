@@ -63,7 +63,7 @@ function Footer() {
                 {/* Quick Link to Repo */}
                 <div className="footer-links">
                     <a 
-                        href="https://github.com/ARShaikh0801/Papertrail" 
+                        href="https://github.com/ARShaikh0801/papertrail-notes" 
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="github-link"
