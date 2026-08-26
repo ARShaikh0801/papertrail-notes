@@ -13,6 +13,7 @@ function QuickCreateForm({ onCreated, apiPost }) {
     const [items, setItems] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     
     const textareaRef = useRef(null);
     const checklistInputRef = useRef(null);
@@ -29,12 +30,25 @@ function QuickCreateForm({ onCreated, apiPost }) {
     useEffect(setVisibility,[items,content]);
 
     useEffect(() => {
+        const checkMobile = () => {
+            const mobileCheck = window.matchMedia("(max-width: 768px)").matches || 
+                                /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            setIsMobile(mobileCheck);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    useEffect(() => {
         if (isChecklist && items.length === 0) {
             setItems([{ text: '', checked: false }]);
         }
     }, [isChecklist]);
 
     useEffect(() => {
+        if (isMobile) return;
+
         const handleGlobalKeyDown = (e) => {
             const active = document.activeElement;
             const isTyping = active && (
@@ -58,7 +72,7 @@ function QuickCreateForm({ onCreated, apiPost }) {
         return () => {
             window.removeEventListener('keydown', handleGlobalKeyDown);
         };
-    }, [isChecklist]);
+    }, [isChecklist, isMobile]);
 
     
 
@@ -151,7 +165,7 @@ function QuickCreateForm({ onCreated, apiPost }) {
             ) : (
                 <textarea
                     ref={textareaRef}
-                    placeholder="Take a Note…"
+                    placeholder={isMobile ? "Take a Note…" : "Take a Note… (Press '/' to focus)"}
                     value={content}
                     onChange={e => setContent(e.target.value)}
                     rows={2}

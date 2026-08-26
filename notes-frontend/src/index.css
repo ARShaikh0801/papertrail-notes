@@ -164,3 +164,84 @@ button:disabled, .modal-overlay, .loader-overlay, .loader-card {
 [data-theme="dark"] .loader-card {
   cursor: url('/cursor-na-white.svg') 4 4, not-allowed !important;
 }
+
+/* ───── Password Field Reveal Custom Styles ───── */
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrapper input {
+  padding-right: 2.6rem !important;
+}
+
+/* Hide Microsoft Edge / IE native password reveal and clear icons */
+.password-input-wrapper input::-ms-reveal,
+.password-input-wrapper input::-ms-clear {
+  display: none;
+}
+
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--ink-muted) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 0 !important;
+  z-index: 5;
+  transition: color 0.15s ease;
+  animation: none !important;
+}
+
+.password-toggle-btn:hover {
+  color: var(--amber) !important;
+  transform: translateY(-50%) !important;
+  box-shadow: none !important;
+}
+
+.password-toggle-btn:active {
+  transform: translateY(-50%) !important;
+}
+
+[data-theme="dark"] .password-toggle-btn {
+  cursor: url('/cursor-pointer-white.svg') 4 4, pointer !important;
+}
+
+[data-theme="light"] .password-toggle-btn {
+  cursor: url('/cursor-pointer.svg') 4 4, pointer !important;
+}
+
+/* ───── Guest Link Styles ───── */
+.guest-link-container {
+  margin-top: 1.2rem;
+  border-top: 1px solid rgba(200, 136, 58, 0.15);
+  padding-top: 0.8rem;
+  text-align: center;
+}
+
+.guest-link {
+  text-decoration: none;
+  color: var(--amber) !important;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.15s ease, transform 0.15s ease;
+  display: inline-block;
+}
+
+.guest-link:hover {
+  color: var(--amber-dark, #b57c32) !important;
+  transform: translateX(3px);
+}
+
+
