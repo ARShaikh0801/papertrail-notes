@@ -4,13 +4,15 @@ A modern, full-stack notes application built with **Django REST Framework** and 
 
 🔗 **Live Demo:** [papertrail-notes.vercel.app](https://papertrail-notes.vercel.app)
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
-![Django](https://img.shields.io/badge/Django-5.2-green?logo=django)
-![DRF](https://img.shields.io/badge/DRF-3.16-red?logo=django)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
-![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite)
-![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb)
-![PWA](https://img.shields.io/badge/PWA-Enabled-5A0FC8?logo=pwa)
+<p>
+  <img src="https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Django-5.2-green?style=for-the-badge&logo=django&logoColor=white" alt="Django" />
+  <img src="https://img.shields.io/badge/DRF-3.16-red?style=for-the-badge&logo=django&logoColor=white" alt="DRF" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white" alt="React" />
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" />
+  <img src="https://img.shields.io/badge/PWA-Enabled-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white" alt="PWA" />
+</p>
 
 ---
 
@@ -235,9 +237,9 @@ npm run preview  # Preview the production build locally
 ## 🔐 Authentication Flow
 
 ```
-┌─────────┐         ┌─────────────┐         ┌──────────────┐
-│  Client  │──POST──▶│ /auth/login/ │──token──▶│  localStorage │
-└─────────┘         └─────────────┘         └──────────────┘
+┌─────────┐           ┌─────────────┐           ┌──────────────┐
+│  Client │ ──POST──▶│ /auth/login/ │──token──▶│ localStorage │
+└─────────┘           └─────────────┘           └──────────────┘
      │                                              │
      │ Every subsequent request                     │
      │ ┌────────────────────────────────────────────┘
