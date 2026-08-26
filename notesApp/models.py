@@ -48,6 +48,14 @@ class Stats(Document):
 
     meta = {'collection': 'stats'}
 
+class VerificationCode(Document):
+    email      = EmailField(required=True, unique=True)
+    code       = StringField(required=True)
+    created_at = DateTimeField(default=_get_utc_now)
+    sent_at    = DateTimeField(default=_get_utc_now)
+
+    meta = {'collection': 'verification_codes'}
+
 from django.db import models
 
 class UserORM(models.Model):

@@ -250,6 +250,152 @@ p a::after {
 }
 p a:hover::after { width: 100%; }
 
+/* ───── Forgot Password Close & Toggles ───── */
+.login-close-btn {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  font-weight: 300;
+  color: var(--ink-muted);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  padding: 0;
+  margin: 0;
+  z-index: 10;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.login-close-btn:hover {
+  color: var(--rust);
+  transform: scale(1.1);
+  background: transparent;
+  box-shadow: none;
+}
+
+.forgot-password-container {
+  margin-top: -0.4rem;
+  margin-bottom: 0.8rem;
+  text-align: right;
+}
+
+.forgot-password-link {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.forgot-password-link:hover {
+  color: var(--amber);
+}
+
+/* ───── Send Code Button ───── */
+.send-code-container {
+  margin-top: -0.2rem;
+  margin-bottom: 1.3rem;
+  display: flex;
+  justify-content: flex-start;
+  animation: fadeIn 0.5s both;
+}
+
+.send-code-btn {
+  width: auto;
+  min-width: 170px;
+  padding: 0.65rem 1.2rem;
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--amber);
+  background: transparent;
+  border: 1.5px solid var(--amber);
+  border-radius: 4px;
+  box-shadow: none;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  transition: all 0.2s ease;
+}
+
+.send-code-btn:hover:not(:disabled) {
+  background: var(--amber-pale);
+  transform: translateY(-1px);
+}
+
+.send-code-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.send-code-btn:disabled {
+  color: var(--ink-faint);
+  border-color: var(--input-border);
+  background: transparent;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ───── Success Message ───── */
+.success-line {
+  background: rgba(40, 140, 80, 0.08);
+  border-left: 3px solid #288c50;
+  color: #1e6b3b;
+  font-size: 0.82rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0 4px 4px 0;
+  margin-bottom: 1.3rem;
+  text-align: left;
+  animation: fadeIn 0.5s both;
+}
+
+[data-theme="dark"] .success-line {
+  background: rgba(80, 180, 100, 0.12);
+  border-left: 3px solid #50b464;
+  color: #72d987;
+}
+
+/* ───── Split Verification Code Inputs ───── */
+.verification-code-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+  margin-bottom: 0.5rem;
+}
+
+.digit-input {
+  width: 48px;
+  height: 48px;
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--input-border);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.digit-input:focus {
+  background: var(--focus-bg);
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.register-submit-btn {
+  margin-top: 1rem;
+  width: 100%;
+}
+
 /* ─────────────────────────────
    RESPONSIVE — MOBILE
 ───────────────────────────── */
@@ -276,8 +422,29 @@ p a:hover::after { width: 100%; }
     font-size: 0.88rem;
   }
 
+  .digit-input {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .verification-code-container {
+    gap: 0.35rem;
+  }
+
   button {
     padding: 0.7rem 1rem;
     font-size: 0.82rem;
+  }
+
+  .send-code-btn {
+    padding: 0.55rem 1rem;
+    font-size: 0.72rem;
+    min-width: 140px;
+  }
+
+  .login-close-btn {
+    top: 0.8rem;
+    right: 0.8rem;
   }
 }

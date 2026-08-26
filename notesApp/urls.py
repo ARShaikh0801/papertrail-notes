@@ -2,7 +2,10 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('auth/send-code/', views.SendVerificationCodeView.as_view()),
     path('auth/register/', views.RegisterView.as_view()),
+    path('auth/forgot-password/send-code/', views.SendForgotPasswordCodeView.as_view()),
+    path('auth/forgot-password/reset/', views.ResetPasswordView.as_view()),
     path('auth/login/',    views.LoginView.as_view()),
     path('notes/',         views.NoteListCreateView.as_view()),
     path('notes/<str:note_id>/', views.NoteDetailView.as_view()),
