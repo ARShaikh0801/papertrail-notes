@@ -74,7 +74,7 @@ function Register() {
             setCodeSent(true);
             setSentEmail(formData.email);
             setCountdown(120); // 2 minutes cooldown
-            setSuccessMsg("Verification code sent successfully to " + formData.email);
+            setSuccessMsg("Verification code sent successfully to " + formData.email + ". (Please also check your spam folder)");
         } catch (err) {
             setError({ error_view: err.response?.data?.error_view || err.response?.data?.detail || "Failed to send verification code." });
         } finally {
