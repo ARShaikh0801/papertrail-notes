@@ -203,6 +203,7 @@ def send_verification_code_helper(email, is_forgot_password=False):
         from django.conf import settings
         msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [email])
         msg.attach_alternative(html_content, "text/html")
+        print(2)
         msg.send()
     except Exception as e:
         return Response({'error_view': f'Failed to send email: {str(e)}'}, status=500)
@@ -276,6 +277,7 @@ class SendForgotPasswordCodeView(APIView):
         email = request.data.get('email', '').strip().lower()
         if not email:
             return Response({'error_view': 'Email is required'}, status=400)
+        print(1)
         return send_verification_code_helper(email, is_forgot_password=True)
 
 
