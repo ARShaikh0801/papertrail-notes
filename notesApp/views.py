@@ -356,7 +356,7 @@ class NoteListCreateView(APIView):
     def post(self, request):
         serializer = NoteSerializer(data=request.data)
         raw_items = request.data.get('items', [])
-        checklist_items = [ChecklistItem(text=i['text'], checked=i.get('checked', False)) for i in raw_items]
+        checklist_items = [ChecklistItem(text=i.get('text', ''), checked=i.get('checked', False)) for i in raw_items]
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=400)
@@ -364,8 +364,8 @@ class NoteListCreateView(APIView):
         data = serializer.validated_data
         note = Note(
             user=request.user.username,
-            title=data['title'],
-            content=data['content'],
+            title=data.get('title', 'Untitled') or 'Untitled',
+            content=data.get('content', ''),
             is_pinned=data.get('is_pinned', False),
             is_checklist=data.get('is_checklist', False),
             items=checklist_items
@@ -385,11 +385,11 @@ class NoteDetailView(APIView):
 
         data = request.data
         if 'title' in data:
-            note.title = data['title']
+            note.title = data['title'].strip() if data['title'] and data['title'].strip() else 'Untitled'
         if 'is_checklist' in data:
             note.is_checklist = data['is_checklist']
         if 'items' in data:
-            note.items = [ChecklistItem(text=i['text'], checked=i.get('checked', False)) for i in data['items']]
+            note.items = [ChecklistItem(text=i.get('text', ''), checked=i.get('checked', False)) for i in data['items']]
         if 'content' in data:
             note.content = data['content']
         if 'is_pinned' in data:

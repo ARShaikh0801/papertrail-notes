@@ -1,15 +1,19 @@
 .modal-overlay {
   width: 100vw;
   height: 100vh;
+  height: var(--vv-height, 100dvh);
   backdrop-filter: blur(5px);
   display: flex;
   position: fixed;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
   justify-content: center;
   align-items: center;
   cursor: url('/cursor-na.svg') 4 4, not-allowed;
   z-index: 1000;
+  overflow: hidden;
 }
 
 /* ─────────────────────────────
@@ -18,7 +22,7 @@
 .note-form {
   background: var(--warm-white);
   border-radius: 3px;
-  padding: 2.2rem 2.4rem 2rem;
+  padding: 1rem;
   width: 100%;
   max-width: 460px;
   max-height: 85vh;
@@ -60,7 +64,7 @@
   }
 }
 
-.note-form textarea {
+.note-form textarea:not(.checklist-inline-input) {
   scrollbar-color: var(--amber) transparent;
   flex-grow: 1;
   min-height: 220px;
@@ -81,7 +85,7 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-.note-form>button:last-child {
+.note-form>button.legacy-submit-btn:last-child {
   width: 100%;
   padding: 0.85rem 1.5rem;
   margin: 0.2rem 0 0;
@@ -167,14 +171,29 @@
   background: rgba(200, 136, 58, 0.08);
 }
 
-.note-form input[type="text"],
-.note-form textarea {
+.note-form input[type="text"] {
   display: block;
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: 0.3rem;
   padding: 0.75rem 1rem;
   font-family: 'DM Sans', sans-serif;
-  font-size: 0.92rem;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--input-border);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.note-form textarea:not(.checklist-inline-input) {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.3rem;
+  padding: 0.75rem 1rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.25rem;
   font-weight: 400;
   color: var(--ink);
   background: var(--paper);
@@ -193,8 +212,44 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.4rem;
-  position: relative;
+  margin-bottom: 0.6rem;
+  gap: 10px;
+}
+
+.note-form-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.note-form-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.save-status-text {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  font-style: italic;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.undo-btn {
+  height: 30px;
+  padding: 0 0.8rem;
+  background: rgba(200, 136, 58, 0.1);
+  color: var(--amber);
+  border: none;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .note-form-header h3 {
@@ -203,20 +258,18 @@
   font-weight: 600;
   color: var(--ink);
   letter-spacing: -0.01em;
-  padding-right: 15px;
-  word-break: break-all;
   display: flex;
   gap: 5px;
   align-items: center;
-  justify-content: center;
-  max-height: 40px;
+  margin: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .note-form-header h3 span {
   display: inline-block;
-  width: min-content;
-  height: min-content;
-  font-size: 5rem;
+  font-size: 2.5rem;
+  line-height: 1;
   font-weight: bolder;
   color: var(--amber);
 }
@@ -290,48 +343,65 @@
   margin-bottom: 1rem;
 }
 
-.checklist-toggle>input[type="checkbox"] {
+.checklist-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 0.35rem 0.85rem;
+  margin-top: 0.1rem;
+  margin-bottom: 0.95rem;
+  background: rgba(200, 136, 58, 0.10);
+  border: 1px solid var(--input-border);
+  border-radius: 20px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  user-select: none;
+  transition: background 0.2s, border-color 0.2s;
+  width: fit-content;
+}
+
+.checklist-toggle:hover {
+  background: rgba(200, 136, 58, 0.18);
+  border-color: var(--amber);
+}
+
+.checklist-toggle > input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
   border: 1.5px solid var(--ink-muted);
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--paper);
   position: relative;
   flex-shrink: 0;
+  margin: 0 !important;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
-.checklist-toggle {
-  font-size: 18px;
-  cursor: url('/cursor-pointer.svg') 4 4, pointer;
-}
-
-.checklist-toggle>input {
-  margin-right: 7px;
-  cursor: url('/cursor-pointer.svg') 4 4, pointer;
-
-}
-
-.checklist-toggle>span {
+.checklist-toggle > span {
   display: inline-block;
-  margin-bottom: 10px;
-
+  margin-bottom: 0 !important;
+  line-height: 1.2;
 }
 
 .checklist-toggle input[type="checkbox"]:checked {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--amber);
+  border-color: var(--amber);
 }
 
 .checklist-toggle input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 5px;
-  height: 9px;
+  left: 4.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 8px;
   border: 2px solid var(--warm-white);
   border-top: none;
   border-left: none;
@@ -353,37 +423,69 @@ button:disabled {
   /* Edit/Create note modals take whole screen on mobile */
   .modal-overlay:not(.password-modal-overlay) {
     align-items: stretch;
+    height: 100%;
+    height: var(--vv-height, 100dvh);
+    top: 0;
+    bottom: 0;
   }
 
   .modal-overlay:not(.password-modal-overlay) .note-form:not(.password-note-form) {
     max-width: 100%;
     height: 100%;
+    max-height: 100%;
+    max-height: var(--vv-height, 100dvh);
     border-radius: 0;
     margin: 0;
     display: flex;
     flex-direction: column;
-    padding: 2.2rem 1.5rem;
+    padding: 0.75rem 0.85rem 0.5rem 0.85rem;
+    box-sizing: border-box;
   }
 
   .modal-overlay:not(.password-modal-overlay) .note-form:not(.password-note-form)::before {
     border-radius: 0;
   }
 
-  /* Make textarea expand dynamically in the full-screen view */
-  .modal-overlay:not(.password-modal-overlay) .note-form:not(.password-note-form) textarea {
-    flex-grow: 1;
-    min-height: 250px;
-    margin-bottom: 1.5rem;
+  .note-form-header {
+    flex-shrink: 0;
+    margin-bottom: 0.35rem;
   }
 
   .note-form-header h3 {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
+    line-height: 1.2;
   }
 
-  .note-form input[type="text"],
-  .note-form textarea {
-    padding: 0.65rem 0.8rem;
-    font-size: 0.88rem;
+  .note-form-header h3 span {
+    font-size: 2rem;
+    line-height: 0.5;
+    font-weight: 900;
+  }
+
+  .note-form input[type="text"] {
+    flex-shrink: 0;
+    padding: 0.55rem 0.75rem;
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+  }
+
+  .checklist-toggle {
+    flex-shrink: 0;
+    margin-top: 0;
+    margin-bottom: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .markdown-editor-container {
+    min-height: 0 !important;
+    flex: 1 1 auto;
+  }
+
+  .tiptap-wrapper {
+    min-height: 0 !important;
+    flex: 1 1 auto;
   }
 
   .note-form > button:last-child {
@@ -401,4 +503,93 @@ button:disabled {
     max-width: calc(100% - 2rem) !important;
     margin: 0 auto !important;
   }
+}
+
+/* ─────────────────────────────
+   TIPTAP EDITOR
+───────────────────────────── */
+.markdown-editor-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 150px;
+  border: 1.5px solid var(--input-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--paper);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.markdown-editor-container:focus-within {
+  background: var(--focus-bg);
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.tiptap-wrapper,
+.tiptap-wrapper *,
+.tiptap-editor-content,
+.tiptap-editor-content *,
+.ProseMirror,
+.ProseMirror *,
+[contenteditable],
+[contenteditable] * {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.tiptap-wrapper {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
+  background: transparent;
+  overflow-y: auto;
+}
+
+.ProseMirror {
+  padding: 1.5rem 1.2rem 2rem 1.2rem !important;
+  min-height: 100px;
+  flex-grow: 1;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1.32rem;
+  line-height: 1.65;
+  color: var(--ink);
+  text-align: left !important;
+  box-sizing: border-box;
+}
+
+.ProseMirror p {
+  text-align: left;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.65;
+}
+
+.ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--ink-muted);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror strong, 
+.ProseMirror b {
+  font-weight: 700 !important;
+}
+
+.ProseMirror h1, 
+.ProseMirror h2, 
+.ProseMirror h3, 
+.ProseMirror h4, 
+.ProseMirror h5, 
+.ProseMirror h6 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  text-align: left;
 }

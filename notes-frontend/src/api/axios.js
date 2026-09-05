@@ -29,12 +29,12 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response) {
-            if (error.response.status === 401) {
+            if (error.response.status === 401 || error.response.status === 403) {
                 // Clear credentials if token is expired/invalid
                 localStorage.removeItem('token');
                 localStorage.removeItem('username');
                 // Redirect to login if they are not already on login/register pages
-                if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+                if (window.location.pathname !== '/login' && window.location.pathname !== '/register' && window.location.pathname !== '/forgot-password') {
                     window.location.href = '/login';
                 }
             }

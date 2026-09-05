@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import ChecklistBuilder from "./ChecklistBuilder";
-import '../styles/QuickCreateForm.css'
-import Spinner from './Spinner.jsx'
+import '../styles/QuickCreateForm.css';
+import Spinner from './Spinner.jsx';
+import FormattingToolbar from './FormattingToolbar';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
+import { Underline } from '@tiptap/extension-underline';
+import { FontSize } from './FontSizeExtension';
+import DOMPurify from 'dompurify';
 
 function QuickCreateForm({ onCreated, apiPost }) {
 
@@ -15,19 +23,79 @@ function QuickCreateForm({ onCreated, apiPost }) {
     const [loading, setLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     
-    const textareaRef = useRef(null);
     const checklistInputRef = useRef(null);
+
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            TextStyle,
+            Color,
+            Underline,
+            FontSize,
+        ],
+        content: content,
+        onUpdate: ({ editor }) => {
+            setContent(editor.getHTML());
+        },
+        editorProps: {
+            attributes: {
+                class: 'tiptap-editor-content',
+                placeholder: isMobile ? "Take a Note…" : "Take a Note… (Press '/' to focus)",
+            },
+        },
+    });
+
+    useEffect(() => {
+        if (editor && editor.getHTML() !== content) {
+            editor.commands.setContent(content, false);
+        }
+    }, [content, editor]);
     
-    const setVisibility = () => {
-        if((!isChecklist && content.trim() !== '') || (isChecklist && items.length > 0 && items.some(item => item.text.trim() !== ''))){
+    const formRef = useRef(null);
+
+    // Expand form fields immediately on focus so layout height is established before scrolling
+    const handleFocus = () => {
+        setShouldShow(true);
+
+        if (isMobile || window.innerWidth <= 768) {
+            setTimeout(() => {
+                formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    };
+
+    // Keep form expanded if title, content, or checklist items are non-empty
+    useEffect(() => {
+        const hasTextContent = editor ? !editor.isEmpty : content.trim() !== '';
+        const hasTitle = title.trim() !== '';
+        const hasChecklistItems = isChecklist && items.length > 0 && items.some(item => item.text.trim() !== '');
+
+        if (hasTextContent || hasTitle || hasChecklistItems) {
             setShouldShow(true);
         }
-        else{
-            setShouldShow(false);
-        }
-    }
+    }, [title, content, items, isChecklist, editor]);
 
-    useEffect(setVisibility,[items,content]);
+    // Collapse form back to single line when clicking outside if all fields are empty
+    useEffect(() => {
+        const handleOutsideClick = (e) => {
+            if (formRef.current && !formRef.current.contains(e.target)) {
+                const hasTextContent = editor ? !editor.isEmpty : content.trim() !== '';
+                const hasTitle = title.trim() !== '';
+                const hasChecklistItems = isChecklist && items.length > 0 && items.some(item => item.text.trim() !== '');
+
+                if (!hasTextContent && !hasTitle && !hasChecklistItems) {
+                    setShouldShow(false);
+                }
+            }
+        };
+
+        document.addEventListener('mousedown', handleOutsideClick);
+        document.addEventListener('touchstart', handleOutsideClick);
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            document.removeEventListener('touchstart', handleOutsideClick);
+        };
+    }, [title, content, items, isChecklist, editor]);
 
     useEffect(() => {
         const checkMobile = () => {
@@ -63,7 +131,7 @@ function QuickCreateForm({ onCreated, apiPost }) {
                 if (isChecklist) {
                     checklistInputRef.current?.focus();
                 } else {
-                    textareaRef.current?.focus();
+                    editor?.commands.focus();
                 }
             }
         };
@@ -72,10 +140,7 @@ function QuickCreateForm({ onCreated, apiPost }) {
         return () => {
             window.removeEventListener('keydown', handleGlobalKeyDown);
         };
-    }, [isChecklist, isMobile]);
-
-    
-
+    }, [isChecklist, isMobile, editor]);
 
     const addItemAtIndex = (index, text) => {
         setItems(prev => {
@@ -96,9 +161,9 @@ function QuickCreateForm({ onCreated, apiPost }) {
         prev.map((item, idx) => idx === i ? { ...item, checked: !item.checked } : item)
     );
 
-
     const handleCreate = async () => {
-        if (!isChecklist && !content.trim()) { setError('Content is required'); return; }
+        const hasContent = isChecklist ? items.length > 0 : (editor && !editor.isEmpty);
+        if (!isChecklist && !hasContent) { setError('Content is required'); return; }
         if (isChecklist && items.length === 0) { setError('Add at least one item'); return; }
 
         setLoading(true);
@@ -106,7 +171,7 @@ function QuickCreateForm({ onCreated, apiPost }) {
         try {
             await apiPost({
                 title: title.trim() ? title : "Untitled",
-                content: isChecklist ? '' : content,
+                content: isChecklist ? '' : DOMPurify.sanitize(content),
                 is_checklist: isChecklist,
                 items: isChecklist ? items : [],
             });
@@ -117,16 +182,20 @@ function QuickCreateForm({ onCreated, apiPost }) {
             setLoading(false);
             setTitle('');
             setContent('');
+            if (editor) editor.commands.setContent('', false);
             setItems([]);
             setIsChecklist(false);
             setShouldShow(false);
         }
     };
 
-
-
-    return (<>
-        <div className="quick-form-container" onKeyDown={e => { if (e.key === 'Enter') e.stopPropagation(); }}>
+    return (
+        <div 
+            ref={formRef} 
+            className="quick-form-container" 
+            onFocus={handleFocus}
+            onKeyDown={e => { if (e.key === 'Enter') e.stopPropagation(); }}
+        >
 
             <div className={`needed-focus ${shouldShow ? '' : 'hidden-quick-field'}`}>
                 {error && <p className="error-line">{error}</p>}
@@ -161,16 +230,11 @@ function QuickCreateForm({ onCreated, apiPost }) {
                         inputRef={checklistInputRef}
                     />
                 </div>
-
             ) : (
-                <textarea
-                    ref={textareaRef}
-                    placeholder={isMobile ? "Take a Note…" : "Take a Note… (Press '/' to focus)"}
-                    value={content}
-                    onChange={e => setContent(e.target.value)}
-                    rows={2}
-                    autoFocus
-                />
+                <div className="quick-form-editor-container">
+                    <EditorContent editor={editor} className="quick-form-tiptap-wrapper" />
+                    <FormattingToolbar editor={editor} />
+                </div>
             )}
 
             <div className={`needed-focus ${shouldShow ? '' : 'hidden-quick-field'}`} >
@@ -183,9 +247,8 @@ function QuickCreateForm({ onCreated, apiPost }) {
                 </button>
             </div>
 
-
         </div>
-    </>);
+    );
 }
 
 export default QuickCreateForm;

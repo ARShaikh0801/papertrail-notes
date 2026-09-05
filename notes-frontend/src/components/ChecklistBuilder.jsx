@@ -2,18 +2,14 @@ import React, { useRef, useEffect } from 'react';
 import '../styles/ChecklistBuilder.css';
 
 const UncheckedIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 25 23">
-        <path d="m2.5.5h10c1.1045695 0 2 .8954305 2 2v10c0 1.1045695-.8954305 2-2 2h-10c-1.1045695 0-2-.8954305-2-2v-10c0-1.1045695.8954305-2 2-2z"
-            fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" transform="translate(2 9)" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="4" />
     </svg>
 );
 
 const CheckedIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="20px" height="20px" viewBox="3 0 35 22">
-        <defs><style>{`.cls-1{fill:none}`}</style></defs>
-        <path d="M26,4H6A2,2,0,0,0,4,6V26a2,2,0,0,0,2,2H26a2,2,0,0,0,2-2V6A2,2,0,0,0,26,4ZM14,21.5,9,16.5427,10.5908,15,14,18.3456,21.4087,11l1.5918,1.5772Z" />
-        <path className="cls-1" d="M14,21.5,9,16.5427,10.5908,15,14,18.3456,21.4087,11l1.5918,1.5772Z" />
-        <rect className="cls-1" width="20px" height="20" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
     </svg>
 );
 
@@ -34,6 +30,15 @@ function ChecklistBuilder({ items, onAddAtIndex, onRemove, onToggle, onTextChang
     const focusIndexRef = useRef(null);
 
     useEffect(() => {
+        inputRefs.current.forEach(el => {
+            if (el) {
+                el.style.height = '28px';
+                if (el.scrollHeight > 28) {
+                    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+                }
+            }
+        });
+
         if (focusIndexRef.current !== null) {
             const el = inputRefs.current[focusIndexRef.current];
             if (el) {
@@ -42,6 +47,13 @@ function ChecklistBuilder({ items, onAddAtIndex, onRemove, onToggle, onTextChang
             focusIndexRef.current = null;
         }
     }, [items]);
+
+    const handleInput = (e) => {
+        e.target.style.height = '28px';
+        if (e.target.scrollHeight > 28) {
+            e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px';
+        }
+    };
 
     const handleKeyDown = (i, e) => {
         if (e.key === 'Enter') {
@@ -71,13 +83,17 @@ function ChecklistBuilder({ items, onAddAtIndex, onRemove, onToggle, onTextChang
                             >
                                 {item.checked ? <CheckedIcon /> : <UncheckedIcon />}
                             </span>
-                            <input
+                            <textarea
                                 ref={el => { inputRefs.current[i] = el; }}
-                                type="text"
                                 className="checklist-inline-input"
                                 placeholder="List item"
                                 value={item.text}
-                                onChange={(e) => onTextChange(i, e.target.value)}
+                                rows={1}
+                                onChange={(e) => {
+                                    onTextChange(i, e.target.value);
+                                    handleInput(e);
+                                }}
+                                onInput={handleInput}
                                 onKeyDown={(e) => handleKeyDown(i, e)}
                                 style={{
                                     textDecoration: item.checked ? 'line-through' : 'none',
@@ -85,9 +101,11 @@ function ChecklistBuilder({ items, onAddAtIndex, onRemove, onToggle, onTextChang
                                 }}
                             />
                             <button 
+                                type="button"
                                 className="remove-item-btn" 
                                 onClick={(e) => { e.stopPropagation(); onRemove(i); }}
                                 tabIndex="-1"
+                                title="Remove item"
                             >
                                 &times;
                             </button>

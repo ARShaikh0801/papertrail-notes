@@ -339,8 +339,12 @@ function Notes() {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
-            const updated = [newNote, ...notes];
-            localStorage.setItem('guest_notes', JSON.stringify(updated));
+            setNotes(prev => {
+                const filtered = prev.filter(n => n.id !== newNote.id);
+                const updated = sortNotes([newNote, ...filtered]);
+                localStorage.setItem('guest_notes', JSON.stringify(updated));
+                return updated;
+            });
             return Promise.resolve({ data: newNote });
         }
 
@@ -366,9 +370,39 @@ function Notes() {
 
     const apiPatch = (id, payload) => {
         if (isGuest) {
-            const updated = notes.map(n => n.id === id ? { ...n, ...payload, updated_at: new Date().toISOString() } : n);
-            localStorage.setItem('guest_notes', JSON.stringify(updated));
-            return Promise.resolve({ data: updated.find(n => n.id === id) });
+            let updatedNote = null;
+            setNotes(prev => {
+                const updated = prev.map(n => {
+                    if (n.id === id) {
+                        updatedNote = { ...n, ...payload, updated_at: new Date().toISOString() };
+                        return updatedNote;
+                    }
+                    return n;
+                });
+                if (!updatedNote) {
+                    try {
+                        const local = JSON.parse(localStorage.getItem('guest_notes') || '[]');
+                        const localUpdated = local.map(n => {
+                            if (n.id === id) {
+                                updatedNote = { ...n, ...payload, updated_at: new Date().toISOString() };
+                                return updatedNote;
+                            }
+                            return n;
+                        });
+                        if (updatedNote) {
+                            const sorted = sortNotes(localUpdated);
+                            localStorage.setItem('guest_notes', JSON.stringify(sorted));
+                            return sorted;
+                        }
+                    } catch (_) {}
+                } else {
+                    const sorted = sortNotes(updated);
+                    localStorage.setItem('guest_notes', JSON.stringify(sorted));
+                    return sorted;
+                }
+                return prev;
+            });
+            return Promise.resolve({ data: updatedNote });
         }
 
         if (!navigator.onLine) {

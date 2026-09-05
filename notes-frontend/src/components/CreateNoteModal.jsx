@@ -2,6 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import ChecklistBuilder from './ChecklistBuilder';
 import Spinner from './Spinner.jsx';
 import '../styles/Create&EditNoteModal.css';
+import FormattingToolbar from './FormattingToolbar';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
+import { Underline } from '@tiptap/extension-underline';
+import { FontSize } from './FontSizeExtension';
+import DOMPurify from 'dompurify';
 
 /**
  * CreateNoteModal
@@ -19,6 +27,63 @@ function CreateNoteModal({ onClose, onCreated, apiPost, apiPatch }) {
     const bottomRef = useRef(null);
     const prevItemsLengthRef = useRef(0);
     
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            TextStyle,
+            Color,
+            Underline,
+            FontSize,
+        ],
+        content: content,
+        onUpdate: ({ editor }) => {
+            setContent(editor.getHTML());
+        },
+        editorProps: {
+            attributes: {
+                class: 'tiptap-editor-content',
+                placeholder: 'Write something…',
+            },
+        },
+    });
+
+    useEffect(() => {
+        if (editor && editor.getHTML() !== content) {
+            editor.commands.setContent(content, false);
+        }
+    }, [content, editor]);
+
+    // Lock body scroll & adapt to mobile visualViewport (e.g. software keyboard)
+    useEffect(() => {
+        const originalOverflow = document.body.style.overflow;
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        const handleViewportChange = () => {
+            if (window.visualViewport) {
+                document.documentElement.style.setProperty('--vv-height', `${window.visualViewport.height}px`);
+            }
+        };
+
+        handleViewportChange();
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleViewportChange);
+            window.visualViewport.addEventListener('scroll', handleViewportChange);
+        }
+
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.documentElement.style.overflow = originalHtmlOverflow;
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', handleViewportChange);
+                window.visualViewport.removeEventListener('scroll', handleViewportChange);
+            }
+            document.documentElement.style.removeProperty('--vv-height');
+        };
+    }, []);
+
     // Undo stack
     const [history, setHistory] = useState([]);
     const isUndoingRef = useRef(false);
@@ -83,13 +148,12 @@ function CreateNoteModal({ onClose, onCreated, apiPost, apiPatch }) {
     const performSave = async (stateToSave) => {
         try {
             if (!noteIdRef.current) {
-                // If there's absolutely no content/title, don't perform empty save yet
                 if (!stateToSave.title.trim() && !stateToSave.content.trim() && stateToSave.items.length === 0) {
                     return;
                 }
                 const res = await apiPost({
                     title: stateToSave.title.trim() ? stateToSave.title : "Untitled",
-                    content: stateToSave.isChecklist ? '' : stateToSave.content,
+                    content: stateToSave.isChecklist ? '' : DOMPurify.sanitize(stateToSave.content),
                     is_checklist: stateToSave.isChecklist,
                     items: stateToSave.isChecklist ? stateToSave.items : [],
                 });
@@ -97,7 +161,8 @@ function CreateNoteModal({ onClose, onCreated, apiPost, apiPatch }) {
             } else {
                 await apiPatch(noteIdRef.current, {
                     title: stateToSave.title.trim() ? stateToSave.title : "Untitled",
-                    content: stateToSave.isChecklist ? '' : stateToSave.content,
+                    content: stateToSave.isChecklist ? '' : DOMPurify.sanitize(stateToSave.content),
+                    is_checklist: stateToSave.isChecklist,
                     items: stateToSave.isChecklist ? stateToSave.items : [],
                 });
             }
@@ -176,27 +241,17 @@ function CreateNoteModal({ onClose, onCreated, apiPost, apiPatch }) {
             <div className="note-form" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="note-form-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="note-form-header-left">
                         <h3><span>·</span> New Note</h3>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', fontStyle: 'italic' }}>
+                        <span className="save-status-text">
                             {saveStatus}
                         </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="note-form-header-right">
                         {history.length > 0 && (
                             <button 
                                 onClick={handleUndo}
-                                style={{
-                                    height: '30px',
-                                    padding: '0 0.8rem',
-                                    background: 'rgba(200, 136, 58, 0.1)',
-                                    color: 'var(--amber)',
-                                    border: 'none',
-                                    borderRadius: '3px',
-                                    fontSize: '0.85rem',
-                                    fontWeight: '500',
-                                    cursor: 'pointer'
-                                }}
+                                className="undo-btn"
                             >
                                 Undo
                             </button>
@@ -236,12 +291,10 @@ function CreateNoteModal({ onClose, onCreated, apiPost, apiPatch }) {
                         bottomRef={bottomRef}
                     />
                 ) : (
-                    <textarea
-                        placeholder="Write something…"
-                        value={content}
-                        onChange={e => setContent(e.target.value)}
-                        rows={5}
-                    />
+                    <div className="markdown-editor-container">
+                        <EditorContent editor={editor} className="tiptap-wrapper" />
+                        <FormattingToolbar editor={editor} />
+                    </div>
                 )}
             </div>
         </div>

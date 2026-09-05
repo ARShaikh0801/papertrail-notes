@@ -2,13 +2,33 @@ import { useState, useRef, useEffect } from 'react';
 import ChecklistBuilder from './ChecklistBuilder';
 import '../styles/Create&EditNoteModal.css';
 import Spinner from './Spinner.jsx';
+import FormattingToolbar from './FormattingToolbar';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
+import { Underline } from '@tiptap/extension-underline';
+import { FontSize } from './FontSizeExtension';
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 
 /**
  * EditNoteModal
  */
 function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
     const [title, setTitle]         = useState(note.title);
-    const [content, setContent]     = useState(note.content || '');
+    
+    // Parse markdown for older notes that were saved with markdown tags, 
+    // so Tiptap correctly understands them as HTML.
+    const getInitialContent = (rawContent) => {
+        if (!rawContent) return '';
+        // Only parse if it looks like markdown (e.g. has ** or # or doesn't have HTML tags)
+        // marked.parse works safely on both HTML and markdown.
+        return marked.parse(rawContent, { async: false });
+    };
+
+    const [content, setContent]     = useState(getInitialContent(note.content));
+    const [isChecklist, setIsChecklist] = useState(note.is_checklist || false);
     const [items, setItems]         = useState(note.items && note.items.length > 0 ? note.items.map(i => ({ ...i })) : [{ text: '', checked: false }]);
     const [error, setError]         = useState('');
     const [saveStatus, setSaveStatus] = useState('Saved'); // 'Saved', 'Saving...', 'Failed'
@@ -16,11 +36,68 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
     const bottomRef = useRef(null);
     const prevEditItemsLengthRef = useRef(0);
     const saveTimeoutRef = useRef(null);
+    
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            TextStyle,
+            Color,
+            Underline,
+            FontSize,
+        ],
+        content: content,
+        onUpdate: ({ editor }) => {
+            setContent(editor.getHTML());
+        },
+        editorProps: {
+            attributes: {
+                class: 'tiptap-editor-content',
+                placeholder: 'Write something…',
+            },
+        },
+    });
+
+    useEffect(() => {
+        if (editor && editor.getHTML() !== content) {
+            editor.commands.setContent(content, false);
+        }
+    }, [content, editor]);
+
+    // Lock body scroll & adapt to mobile visualViewport (e.g. software keyboard)
+    useEffect(() => {
+        const originalOverflow = document.body.style.overflow;
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        const handleViewportChange = () => {
+            if (window.visualViewport) {
+                document.documentElement.style.setProperty('--vv-height', `${window.visualViewport.height}px`);
+            }
+        };
+
+        handleViewportChange();
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleViewportChange);
+            window.visualViewport.addEventListener('scroll', handleViewportChange);
+        }
+
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.documentElement.style.overflow = originalHtmlOverflow;
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', handleViewportChange);
+                window.visualViewport.removeEventListener('scroll', handleViewportChange);
+            }
+            document.documentElement.style.removeProperty('--vv-height');
+        };
+    }, []);
 
     // Undo History Stack
     const [history, setHistory] = useState([]);
     const isUndoingRef = useRef(false);
-    const prevStateRef = useRef({ title: note.title, content: note.content || '', items: note.items ? note.items.map(i => ({ ...i })) : [] });
+    const prevStateRef = useRef({ title: note.title, content: note.content || '', items: note.items ? note.items.map(i => ({ ...i })) : [], isChecklist: note.is_checklist || false });
 
     useEffect(() => {
         if (items.length > prevEditItemsLengthRef.current) {
@@ -32,7 +109,8 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
     // Reinitialise if a different note is passed in
     useEffect(() => {
         setTitle(note.title);
-        setContent(note.content || '');
+        setContent(getInitialContent(note.content));
+        setIsChecklist(note.is_checklist || false);
         setItems(note.items && note.items.length > 0 ? note.items.map(i => ({ ...i })) : [{ text: '', checked: false }]);
         setHistory([]);
         setError('');
@@ -40,6 +118,7 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
         prevStateRef.current = {
             title: note.title,
             content: note.content || '',
+            isChecklist: note.is_checklist || false,
             items: note.items && note.items.length > 0 ? note.items.map(i => ({ ...i })) : [{ text: '', checked: false }]
         };
     }, [note.id]);
@@ -70,6 +149,7 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
                 last &&
                 last.title === state.title &&
                 last.content === state.content &&
+                last.isChecklist === state.isChecklist &&
                 JSON.stringify(last.items) === JSON.stringify(state.items)
             ) {
                 return prev;
@@ -86,6 +166,7 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
         isUndoingRef.current = true;
         setTitle(previousState.title);
         setContent(previousState.content);
+        setIsChecklist(previousState.isChecklist);
         setItems(previousState.items);
 
         triggerSaveImmediate(previousState);
@@ -95,8 +176,9 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
         try {
             await apiPatch(note.id, {
                 title: stateToSave.title.trim() ? stateToSave.title : "Untitled",
-                content: note.is_checklist ? '' : stateToSave.content,
-                items: note.is_checklist ? stateToSave.items : [],
+                content: stateToSave.isChecklist ? '' : DOMPurify.sanitize(stateToSave.content),
+                is_checklist: stateToSave.isChecklist,
+                items: stateToSave.isChecklist ? stateToSave.items : [],
             });
             setSaveStatus('Saved');
         } catch (err) {
@@ -132,12 +214,13 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
 
     // Watch for modifications to trigger autosave
     useEffect(() => {
-        const currentState = { title, content, items };
+        const currentState = { title, content, items, isChecklist };
         const prevState = prevStateRef.current;
 
         const hasChanged =
             prevState.title !== title ||
             prevState.content !== content ||
+            prevState.isChecklist !== isChecklist ||
             JSON.stringify(prevState.items) !== JSON.stringify(items);
 
         if (hasChanged) {
@@ -148,14 +231,14 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
             }
             prevStateRef.current = currentState;
         }
-    }, [title, content, items]);
+    }, [title, content, items, isChecklist]);
 
     const handleClose = async () => {
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
             saveTimeoutRef.current = null;
         }
-        await performSave({ title, content, items });
+        await performSave({ title, content, items, isChecklist });
         onSaved();
         onClose();
     };
@@ -165,27 +248,17 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
             <div className="note-form" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="note-form-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h3>{title || 'Edit Note'}</h3>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', fontStyle: 'italic' }}>
+                    <div className="note-form-header-left">
+                        <h3><span>·</span> Edit Note</h3>
+                        <span className="save-status-text">
                             {saveStatus}
                         </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="note-form-header-right">
                         {history.length > 0 && (
                             <button 
                                 onClick={handleUndo}
-                                style={{
-                                    height: '30px',
-                                    padding: '0 0.8rem',
-                                    background: 'rgba(200, 136, 58, 0.1)',
-                                    color: 'var(--amber)',
-                                    border: 'none',
-                                    borderRadius: '3px',
-                                    fontSize: '0.85rem',
-                                    fontWeight: '500',
-                                    cursor: 'pointer'
-                                }}
+                                className="undo-btn"
                             >
                                 Undo
                             </button>
@@ -204,8 +277,18 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
                     onChange={e => setTitle(e.target.value)}
                 />
 
+                {/* Checklist toggle */}
+                <label className="checklist-toggle">
+                    <input
+                        type="checkbox"
+                        checked={isChecklist}
+                        onChange={e => setIsChecklist(e.target.checked)}
+                    />
+                    <span>Checklist mode</span>
+                </label>
+
                 {/* Body */}
-                {note.is_checklist ? (
+                {isChecklist ? (
                     <ChecklistBuilder
                         items={items}
                         onAddAtIndex={addItemAtIndex}
@@ -215,12 +298,10 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
                         bottomRef={bottomRef}
                     />
                 ) : (
-                    <textarea
-                        placeholder="Write something…"
-                        value={content}
-                        onChange={e => setContent(e.target.value)}
-                        rows={5}
-                    />
+                    <div className="markdown-editor-container">
+                        <EditorContent editor={editor} className="tiptap-wrapper" />
+                        <FormattingToolbar editor={editor} />
+                    </div>
                 )}
             </div>
         </div>

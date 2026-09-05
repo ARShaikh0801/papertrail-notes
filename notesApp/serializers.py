@@ -12,12 +12,12 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField()
 
 class ChecklistItemSerializer(serializers.Serializer):
-    text    = serializers.CharField()
+    text    = serializers.CharField(default='', allow_blank=True, required=False)
     checked = serializers.BooleanField(default=False)
 class NoteSerializer(serializers.Serializer):
     id        = serializers.CharField(read_only=True)
-    title     = serializers.CharField(max_length=200)
-    content   = serializers.CharField(default='',allow_blank=True,required=False)
+    title     = serializers.CharField(max_length=200, default='Untitled', allow_blank=True, required=False)
+    content   = serializers.CharField(default='', allow_blank=True, required=False)
     is_pinned = serializers.BooleanField(default=False)
     is_checklist = serializers.BooleanField(default=False)
     is_locked = serializers.BooleanField(default=False, read_only=True)

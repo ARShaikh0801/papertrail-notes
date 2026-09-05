@@ -70,6 +70,43 @@
   scrollbar-color: var(--amber) transparent;
 }
 
+.quick-form-editor-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  max-height: 240px;
+  border: 1.5px solid var(--input-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--paper);
+  margin-bottom: 1rem;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.quick-form-editor-container:focus-within {
+  background: var(--focus-bg);
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.quick-form-tiptap-wrapper {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 85px;
+  max-height: 195px;
+  background: transparent;
+  overflow-y: auto;
+  scrollbar-color: var(--amber) transparent;
+}
+
+.quick-form-tiptap-wrapper .ProseMirror {
+  padding: 0.85rem 1rem !important;
+  min-height: 75px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 .hidden-quick-field {
   display: none;
 }
@@ -84,48 +121,65 @@
   margin-bottom: 1rem;
 }
 
-.checklist-toggle>input[type="checkbox"] {
+.checklist-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 0.35rem 0.85rem;
+  margin-top: 0.1rem;
+  margin-bottom: 0.95rem;
+  background: rgba(200, 136, 58, 0.10);
+  border: 1px solid var(--input-border);
+  border-radius: 20px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  user-select: none;
+  transition: background 0.2s, border-color 0.2s;
+  width: fit-content;
+}
+
+.checklist-toggle:hover {
+  background: rgba(200, 136, 58, 0.18);
+  border-color: var(--amber);
+}
+
+.checklist-toggle > input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
   border: 1.5px solid var(--ink-muted);
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--paper);
   position: relative;
   flex-shrink: 0;
+  margin: 0 !important;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
-.checklist-toggle {
-  font-size: 18px;
-  cursor: url('/cursor-pointer.svg') 4 4, pointer;
-}
-
-.checklist-toggle>input {
-  margin-right: 7px;
-  cursor: url('/cursor-pointer.svg') 4 4, pointer;
-
-}
-
-.checklist-toggle>span {
+.checklist-toggle > span {
   display: inline-block;
-  margin-bottom: 10px;
-
+  margin-bottom: 0 !important;
+  line-height: 1.2;
 }
 
 .checklist-toggle input[type="checkbox"]:checked {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--amber);
+  border-color: var(--amber);
 }
 
 .checklist-toggle input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 5px;
-  height: 9px;
+  left: 4.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 8px;
   border: 2px solid var(--warm-white);
   border-top: none;
   border-left: none;
@@ -146,6 +200,42 @@ button:disabled {
 @media (max-width: 480px) {
   .quick-form-container {
     width: 95%;
-    padding: 1.4rem 1.2rem 1.2rem;
+    padding: 0.85rem 0.9rem 0.85rem 0.9rem;
+    margin: 6px auto;
+  }
+
+  .quick-form-container .needed-focus input[type="text"],
+  .quick-form-container input[type="text"] {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .checklist-toggle {
+    margin-bottom: 0.5rem;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.8rem;
+  }
+
+  .quick-form-editor-container {
+    min-height: 90px;
+    max-height: 180px;
+    margin-bottom: 0.6rem;
+  }
+
+  .quick-form-tiptap-wrapper {
+    min-height: 60px;
+    max-height: 140px;
+  }
+
+  .quick-form-tiptap-wrapper .ProseMirror {
+    padding: 0.6rem 0.75rem !important;
+    min-height: 55px;
+    font-size: 0.92rem;
+  }
+
+  .submit-btn {
+    padding: 0.6rem 1rem !important;
+    font-size: 0.82rem !important;
   }
 }

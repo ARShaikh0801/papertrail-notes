@@ -1,20 +1,17 @@
 import { formatToUserTimezone } from '../utils/dateFormatter';
 import '../styles/NoteCard.css'
-import Spinner from './Spinner.jsx'
+import Spinner from './Spinner.jsx';
+import { marked } from 'marked';
 
 const UncheckedIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 25 23">
-        <path d="m2.5.5h10c1.1045695 0 2 .8954305 2 2v10c0 1.1045695-.8954305 2-2 2h-10c-1.1045695 0-2-.8954305-2-2v-10c0-1.1045695.8954305-2 2-2z"
-            fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" transform="translate(2 9)" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="4" />
     </svg>
 );
 
 const CheckedIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="20px" height="20px" viewBox="3 0 35 22">
-        <defs><style>{`.cls-1{fill:none}`}</style></defs>
-        <path d="M26,4H6A2,2,0,0,0,4,6V26a2,2,0,0,0,2,2H26a2,2,0,0,0,2-2V6A2,2,0,0,0,26,4ZM14,21.5,9,16.5427,10.5908,15,14,18.3456,21.4087,11l1.5918,1.5772Z" />
-        <path className="cls-1" d="M14,21.5,9,16.5427,10.5908,15,14,18.3456,21.4087,11l1.5918,1.5772Z" />
-        <rect className="cls-1" width="20px" height="20" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
     </svg>
 );
 
@@ -61,6 +58,19 @@ const UnlockIcon = () => (
  *  onDelete    — (e, id) => void
  */
 function NoteCard({ note, index, onEdit, onPin, pinLoading, onDelete, delLoading, onLockToggle }) {
+    const stripHtml = (content) => {
+        if (!content) return "";
+        if (content === '****') return '****';
+        // Parse markdown first (for old notes), then strip all HTML
+        const html = marked.parse(content, { async: false });
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || "";
+    };
+
+    const plainTextContent = note.is_locked
+        ? '****'
+        : (note.is_checklist ? '' : stripHtml(note.content));
+
     const truncatedTitle = note.title.length > 27
         ? note.title.slice(0, 27) + '…'
         : note.title;
@@ -88,19 +98,34 @@ function NoteCard({ note, index, onEdit, onPin, pinLoading, onDelete, delLoading
             </div>
 
             {/* Body — checklist or plain text */}
-            {note.is_checklist ? (
+            {!note.is_locked && note.is_checklist ? (
                 <ul className="checklist-display">
-                    {note.items?.map((item, idx) => (
-                        <li key={idx} className={item.checked ? 'checked-item' : ''}>
-                            <span className="check-dot">
-                                {item.checked ? <CheckedIcon /> : <UncheckedIcon />}
-                            </span>
-                            {item.checked ? <s>{item.text}</s> : item.text}
-                        </li>
-                    ))}
+                    {note.items && note.items.length > 0 && note.items.some(item => item.text && item.text.trim()) ? (
+                        note.items.slice(0, 2).map((item, idx) => (
+                            <li key={idx} className={item.checked ? 'checked-item' : ''}>
+                                <span className="check-dot">
+                                    {item.checked ? <CheckedIcon /> : <UncheckedIcon />}
+                                </span>
+                                <span className="checklist-item-text">
+                                    {item.checked ? <s>{item.text || '[empty]'}</s> : (item.text || '[empty]')}
+                                </span>
+                            </li>
+                        ))
+                    ) : (
+                        <li style={{ fontStyle: 'italic', color: 'var(--ink-faint)' }}>[empty]</li>
+                    )}
                 </ul>
             ) : (
-                <p className="note-content">{note.content}</p>
+                <p 
+                    className="note-content" 
+                    style={
+                        note.is_locked 
+                            ? { fontStyle: 'italic', letterSpacing: '0.15em', fontWeight: 'bold' } 
+                            : (plainTextContent.trim() ? {} : { fontStyle: 'italic', color: 'var(--ink-faint)' })
+                    }
+                >
+                    {note.is_locked ? '****' : (plainTextContent.trim() || '[empty]')}
+                </p>
             )}
 
             {/* Timestamp */}
