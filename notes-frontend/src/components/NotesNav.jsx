@@ -80,7 +80,7 @@ function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLo
                 <span className={`status-dot ${isOnline ? 'online' : 'offline'}`} title={isOnline ? 'Online' : 'Offline'}></span>
                 <ThemeToggle />
                 {username === 'Guest' ? (
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div className="nav-user-auth" style={{ display: 'flex', gap: '0.5rem' }}>
                         <Link to="/login" className="dropdown-trigger" style={{ textDecoration: 'none' }}>Log In</Link>
                         <Link to="/register" className="dropdown-trigger" style={{ textDecoration: 'none', background: 'var(--rust)', color: 'var(--warm-white)' }}>Sign Up</Link>
                     </div>

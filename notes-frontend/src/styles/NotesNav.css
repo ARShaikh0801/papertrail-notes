@@ -207,13 +207,22 @@ button:disabled {
     padding: 0.8rem 1rem;
   }
 
-  .notes-nav h2 {
+  .nav-brand-group {
     order: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .nav-actions {
     order: 2;
     margin-left: auto;
+    gap: 0.5rem;
+  }
+
+  .user-dropdown-container,
+  .nav-user-auth {
+    display: none !important;
   }
 
   .search-area {

@@ -100,10 +100,15 @@ function Sidebar({
                             className={`sidebar-nav-item ${viewMode === 'pinned' ? 'active' : ''}`}
                             onClick={() => handleSelectView('pinned')}
                         >
-                            <svg className="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="12" y1="17" x2="12" y2="22"></line>
-                                <path d="M5 17h14l-1.5-7H6.5L5 17z"></path>
-                                <path d="M9 10V4a3 3 0 0 1 6 0v6"></path>
+                            <svg className="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2 L17 7 L15 13 L12 14 L9 13 L7 7 Z"
+                                    fill="var(--amber-pale, #faecd6)" stroke="var(--amber, #c8883a)" strokeWidth="1.4" strokeLinejoin="round" />
+                                <line x1="12" y1="4" x2="12" y2="12.5"
+                                    stroke="var(--rust, #a0522d)" strokeWidth="0.9" strokeLinecap="round" opacity="0.5" />
+                                <line x1="12" y1="14" x2="12" y2="21"
+                                    stroke="var(--rust, #a0522d)" strokeWidth="1.5" strokeLinecap="round" />
+                                <line x1="7" y1="7" x2="17" y2="7"
+                                    stroke="var(--amber, #c8883a)" strokeWidth="1.3" strokeLinecap="round" />
                             </svg>
                             <span className="nav-label">Pinned Notes</span>
                             {pinnedCount > 0 && <span className="sidebar-badge badge-pinned">{pinnedCount}</span>}
