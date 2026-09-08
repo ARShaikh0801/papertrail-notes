@@ -345,11 +345,20 @@ class LoginView(APIView):
         return Response({'token': token, 'username': user.username})
 
 
+def purge_expired_trash(username):
+    try:
+        cutoff = get_current_utc_time() - datetime.timedelta(days=30)
+        Note.objects(user=username, is_deleted=True, deleted_at__lt=cutoff).delete()
+    except Exception as e:
+        print(f"Error purging expired trash for {username}: {e}")
+
+
 class NoteListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        notes = Note.objects(user=request.user.username).order_by('-is_pinned', '-created_at')
+        purge_expired_trash(request.user.username)
+        notes = Note.objects(user=request.user.username, is_deleted__ne=True).order_by('-is_pinned', '-created_at')
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
@@ -372,6 +381,50 @@ class NoteListCreateView(APIView):
         )
         note.save()
         return Response(NoteSerializer(note).data, status=201)
+
+
+class NoteTrashView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        purge_expired_trash(request.user.username)
+        notes = Note.objects(user=request.user.username, is_deleted=True).order_by('-deleted_at')
+        serializer = NoteSerializer(notes, many=True)
+        return Response(serializer.data)
+
+    def delete(self, request):
+        """Empty trash: permanently delete all trashed notes for user"""
+        Note.objects(user=request.user.username, is_deleted=True).delete()
+        return Response({'message': 'Trash emptied'}, status=200)
+
+
+class NoteRestoreView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, note_id):
+        try:
+            note = Note.objects.get(id=note_id, user=request.user.username)
+        except Note.DoesNotExist:
+            return Response({'error': 'Note not found'}, status=404)
+
+        note.is_deleted = False
+        note.deleted_at = None
+        note.updated_at = get_current_utc_time()
+        note.save()
+        return Response(NoteSerializer(note).data, status=200)
+
+
+class NotePermanentDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, note_id):
+        try:
+            note = Note.objects.get(id=note_id, user=request.user.username)
+        except Note.DoesNotExist:
+            return Response({'error': 'Note not found'}, status=404)
+
+        note.delete()
+        return Response({'message': 'Note permanently deleted'}, status=200)
 
 
 class NoteDetailView(APIView):
@@ -405,8 +458,10 @@ class NoteDetailView(APIView):
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
-        note.delete()
-        return Response({'message': 'Note deleted'}, status=204)
+        note.is_deleted = True
+        note.deleted_at = get_current_utc_time()
+        note.save()
+        return Response({'message': 'Note moved to trash'}, status=200)
 
 
 class NoteLockView(APIView):

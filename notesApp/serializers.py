@@ -21,6 +21,8 @@ class NoteSerializer(serializers.Serializer):
     is_pinned = serializers.BooleanField(default=False)
     is_checklist = serializers.BooleanField(default=False)
     is_locked = serializers.BooleanField(default=False, read_only=True)
+    is_deleted = serializers.BooleanField(default=False, read_only=True)
+    deleted_at = serializers.DateTimeField(read_only=True, required=False, allow_null=True)
     items        = ChecklistItemSerializer(many=True, required=False)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)

@@ -76,6 +76,26 @@ export const saveCachedNotes = (notes) => {
     }
 };
 
+const TRASH_CACHE_KEY = 'cached_trash_notes_logged_in';
+
+export const getCachedTrash = () => {
+    try {
+        const notes = localStorage.getItem(TRASH_CACHE_KEY);
+        return notes ? JSON.parse(notes) : [];
+    } catch (e) {
+        console.error('Error reading cached trash:', e);
+        return [];
+    }
+};
+
+export const saveCachedTrash = (notes) => {
+    try {
+        localStorage.setItem(TRASH_CACHE_KEY, JSON.stringify(notes));
+    } catch (e) {
+        console.error('Error saving cached trash:', e);
+    }
+};
+
 export const syncOfflineQueue = async (api) => {
     let queue = getOfflineQueue();
     if (queue.length === 0) return { success: true, count: 0 };
@@ -99,6 +119,12 @@ export const syncOfflineQueue = async (api) => {
                 await api.patch(`/notes/${targetId}/`, action.payload);
             } else if (action.type === 'DELETE') {
                 await api.delete(`/notes/${targetId}/`);
+            } else if (action.type === 'RESTORE') {
+                await api.post(`/notes/${targetId}/restore/`);
+            } else if (action.type === 'PERMANENT_DELETE') {
+                await api.delete(`/notes/${targetId}/permanent/`);
+            } else if (action.type === 'EMPTY_TRASH') {
+                await api.delete('/notes/trash/');
             }
         } catch (error) {
             console.error('Failed to sync offline action:', action, error);

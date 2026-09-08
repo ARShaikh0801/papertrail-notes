@@ -17,12 +17,42 @@
   transition: background-color 0.3s ease;
 }
 
+.nav-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.menu-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
+  color: var(--ink) !important;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+
+.menu-toggle-btn:hover {
+  background: rgba(160, 82, 45, 0.08) !important;
+  color: var(--rust) !important;
+  border-color: var(--nav-border) !important;
+}
+
 .notes-nav h2 {
   font-family: 'Lora', Georgia, serif;
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--ink);
   letter-spacing: -0.01em;
+  margin: 0;
 }
 
 .notes-nav h2 svg {
@@ -365,4 +395,61 @@ button:disabled {
   0% { opacity: 0.4; }
   50% { opacity: 1; }
   100% { opacity: 0.4; }
+}
+
+/* ─────────────────────────────
+   VIEW TABS (Notes / Trash)
+───────────────────────────── */
+.nav-view-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--paper-warm);
+  border: 1px solid var(--nav-border);
+  border-radius: 20px;
+  padding: 3px;
+  margin: 0 0.5rem;
+}
+
+.nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem !important;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  background: transparent !important;
+  border: none !important;
+  border-radius: 16px !important;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+  margin: 0 !important;
+  height: 28px;
+}
+
+.nav-tab:hover {
+  color: var(--ink) !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+  transform: none !important;
+}
+
+.nav-tab.active {
+  color: var(--rust) !important;
+  background: var(--paper) !important;
+  font-weight: 600;
+  box-shadow: 0 1px 4px var(--shadow-color) !important;
+}
+
+.trash-tab-badge {
+  background: var(--rust);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 10px;
+  line-height: 1;
+  margin-left: 2px;
 }

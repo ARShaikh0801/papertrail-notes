@@ -36,6 +36,8 @@ class Note(Document):
     is_pinned  = BooleanField(default=False)
     is_checklist = BooleanField(default=False)
     is_locked  = BooleanField(default=False)
+    is_deleted = BooleanField(default=False)
+    deleted_at = DateTimeField(default=None)
     items        = ListField(EmbeddedDocumentField(ChecklistItem))
     created_at = DateTimeField(default=_get_utc_now)
     updated_at = DateTimeField(default=_get_utc_now)
@@ -78,6 +80,8 @@ class NoteORM(models.Model):
     is_pinned = models.BooleanField(default=False)
     is_checklist = models.BooleanField(default=False)
     is_locked = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
 

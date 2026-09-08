@@ -368,3 +368,63 @@ button:disabled {
     padding: 0.2rem 0.5rem;
   }
 }
+
+/* ─────────────────────────────
+   TRASH CARD STYLES
+───────────────────────────── */
+.trash-note-card {
+  border: 1px dashed var(--separator);
+  opacity: 0.92;
+}
+
+.restore-btn {
+  background: #e8f5e9 !important;
+  color: #2e7d32 !important;
+  border: 1px solid #c8e6c9 !important;
+}
+
+.restore-btn:hover:not(:disabled) {
+  background: #2e7d32 !important;
+  color: #ffffff !important;
+  border-color: #2e7d32 !important;
+}
+
+[data-theme="dark"] .restore-btn {
+  background: #1b382b !important;
+  color: #81c784 !important;
+  border-color: #2e5c45 !important;
+}
+
+[data-theme="dark"] .restore-btn:hover:not(:disabled) {
+  background: #81c784 !important;
+  color: #12241b !important;
+}
+
+.perm-delete-btn {
+  background: var(--delete-bg) !important;
+  color: var(--delete-color) !important;
+  border: 1px solid var(--delete-border) !important;
+}
+
+.perm-delete-btn:hover:not(:disabled) {
+  background: var(--delete-color) !important;
+  color: #ffffff !important;
+}
+
+.trash-timestamp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.trash-days-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--rust);
+}

@@ -8,13 +8,13 @@ import ThemeToggle from './ThemeToggle.jsx'
  * NotesNav
  *
  * Props:
- *  username      — string
- *  searchQuery   — string
- *  onSearch      — (e) => void
- *  onClear       — () => void
- *  onLogout      — () => void
+ *  username      - string
+ *  searchQuery   - string
+ *  onSearch      - (e) => void
+ *  onClear       - () => void
+ *  onLogout      - () => void
  */
-function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLoading, isOnline }) {
+function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLoading, isOnline, viewMode = 'all', onToggleSidebar }) {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -31,20 +31,35 @@ function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLo
     return (
         <nav className="notes-nav">
 
-            {/* Brand */}
-            <h2 className="nav-title">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
-                    <path d="M8 2V5" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M16 2V5" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                    <path opacity="0.4" d="M8 11H16" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                    <path opacity="0.4" d="M8 16H12" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Paper<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="logo-pen-icon">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>trail
-            </h2>
+            {/* Brand + Menu Toggle */}
+            <div className="nav-brand-group">
+                <button 
+                    className="menu-toggle-btn" 
+                    onClick={onToggleSidebar}
+                    aria-label="Toggle Navigation Menu"
+                    title="Toggle Menu"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+
+                <h2 className="nav-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 2V5" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M16 2V5" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+                        <path opacity="0.4" d="M8 11H16" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+                        <path opacity="0.4" d="M8 16H12" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Paper<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="logo-pen-icon">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>trail
+                </h2>
+            </div>
 
             {/* Search */}
             <div className="search-area">
@@ -52,7 +67,7 @@ function NotesNav({ username, searchQuery, onSearch, onClear, onLogout, logOutLo
                     <input
                         type="text"
                         className="search-bar"
-                        placeholder="Find Note..."
+                        placeholder={viewMode === 'trash' ? "Find in Trash..." : "Find Note..."}
                         value={searchQuery}
                         onChange={onSearch}
                     />

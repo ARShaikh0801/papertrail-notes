@@ -127,8 +127,19 @@ body {
   cursor: url('/cursor2.svg') 4 4, auto !important;
 }
 
-button, a, [onClick], input, textarea, .checklist-toggle, .checklist-toggle>span, .checklist-toggle>input, .items-preview li span,.items-preview li span s, .note-form>button:last-child, .model-close-btn, .notes-cards, .btn-div button, .notes-nav>button, .clear-search, .items-preview li .clickable, .theme-toggle {
+button, a, [onClick], .checklist-toggle, .checklist-toggle>span, .checklist-toggle>input, .items-preview li span,.items-preview li span s, .note-form>button:last-child, .model-close-btn, .notes-cards, .btn-div button, .notes-nav>button, .clear-search, .items-preview li .clickable, .theme-toggle {
   cursor: url('/cursor-pointer.svg') 4 4, pointer !important;
+}
+
+input,
+textarea,
+.ProseMirror,
+.ProseMirror *,
+[contenteditable],
+[contenteditable] *,
+.checklist-inline-input,
+.item-input {
+  cursor: url('/cursor-text.svg') 12 12, text !important;
 }
 
 button:disabled, .modal-overlay, .loader-overlay, .loader-card {
@@ -145,8 +156,6 @@ button:disabled, .modal-overlay, .loader-overlay, .loader-card {
 [data-theme="dark"] button,
 [data-theme="dark"] a,
 [data-theme="dark"] [onClick],
-[data-theme="dark"] input,
-[data-theme="dark"] textarea,
 [data-theme="dark"] .checklist-toggle,
 [data-theme="dark"] .checklist-toggle>span,
 [data-theme="dark"] .checklist-toggle>input,
@@ -161,6 +170,17 @@ button:disabled, .modal-overlay, .loader-overlay, .loader-card {
 [data-theme="dark"] .items-preview li .clickable,
 [data-theme="dark"] .theme-toggle {
   cursor: url('/cursor-pointer-white.svg') 4 4, pointer !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .ProseMirror,
+[data-theme="dark"] .ProseMirror *,
+[data-theme="dark"] [contenteditable],
+[data-theme="dark"] [contenteditable] *,
+[data-theme="dark"] .checklist-inline-input,
+[data-theme="dark"] .item-input {
+  cursor: url('/cursor-text-white.svg') 12 12, text !important;
 }
 
 [data-theme="dark"] button:disabled,
