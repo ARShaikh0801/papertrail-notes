@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 import os
 import mongoengine
 
@@ -26,6 +27,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured('SECRET_KEY environment variable is required. Set it in .env or your hosting environment.')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG') == 'True'
@@ -59,7 +62,6 @@ MIDDLEWARE = [
 ]
 
 # CORS Configuration
-import os
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
 default_origins = [
@@ -167,15 +169,25 @@ REST_FRAMEWORK = {
         'anon': '100/day',
         'user': '2000/day',
         'sensitive': '5/min',  # Custom rate for auth views
+        'stats': '6/hour',    # Limit visitor counter abuse per IP
     }
 }
 
-# Security Headers (Production Ready)
+# Security Headers (always active)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
+
+# Production-only security headers (disabled in DEBUG to allow HTTP localhost)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000       # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Email Configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
@@ -187,4 +199,16 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Papertrail <no-reply@papertrail.com>')
 EMAIL_TIMEOUT = 5  # Prevent SMTP hangs from killing Gunicorn workers
+
+# Celery Configuration using existing MongoDB as Broker ($0 cost)
+CELERY_BROKER_URL = os.getenv('REDIS_URL') or os.getenv('MONGO_URI')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
+# In local development without REDIS_URL, execute tasks eagerly
+if DEBUG and not os.getenv('REDIS_URL'):
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+
+
 

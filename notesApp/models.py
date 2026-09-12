@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, BooleanField,ListField, DateTimeField, ReferenceField, EmailField, EmbeddedDocument, EmbeddedDocumentField, IntField
+from mongoengine import Document, StringField, BooleanField, ListField, DateTimeField, ReferenceField, EmailField, EmbeddedDocument, EmbeddedDocumentField, IntField, CASCADE
 from django.contrib.auth.hashers import make_password, check_password
 import datetime
 
@@ -10,6 +10,7 @@ class User(Document):
     username   = StringField(required=True, unique=True)
     email      = EmailField(required=True, unique=True)
     password   = StringField(required=True)
+    token_version = IntField(default=0)  # Incremented on password change to invalidate old JWTs
 
     @property
     def is_authenticated(self):
@@ -17,6 +18,7 @@ class User(Document):
 
     def set_password(self, raw_password):
         self.password = make_password(raw_password)
+        self.token_version = (self.token_version or 0) + 1
         self.save()
 
     def check_password(self, raw_password):
@@ -30,7 +32,7 @@ class ChecklistItem(EmbeddedDocument):
 
 
 class Note(Document):
-    user       = StringField(required=True)
+    user       = ReferenceField(User, required=True, reverse_delete_rule=CASCADE)
     title      = StringField(required=True, max_length=200)
     content    = StringField(required=False)
     is_pinned  = BooleanField(default=False)
@@ -42,7 +44,15 @@ class Note(Document):
     created_at = DateTimeField(default=_get_utc_now)
     updated_at = DateTimeField(default=_get_utc_now)
 
-    meta = {'collection': 'notes'}
+    meta = {
+        'collection': 'notes',
+        'indexes': [
+            'user',
+            'is_deleted',
+            ('user', 'is_deleted', '-is_pinned', '-created_at'),
+            ('user', 'is_deleted', '-deleted_at')
+        ]
+    }
 
 class Stats(Document):
     name = StringField(required=True, unique=True)
@@ -53,6 +63,7 @@ class Stats(Document):
 class VerificationCode(Document):
     email      = EmailField(required=True, unique=True)
     code       = StringField(required=True)
+    attempts   = IntField(default=0)  # Tracks failed verification attempts (max 10)
     created_at = DateTimeField(default=_get_utc_now)
     sent_at    = DateTimeField(default=_get_utc_now)
 

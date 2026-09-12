@@ -5,17 +5,24 @@ import Notes from './pages/Notes';
 import Footer from './components/Footer';
 import ReloadPrompt from './components/ReloadPrompt';
 
-function App() {
-    const isLoggedIn = !!localStorage.getItem('token');
+// Route guard: Redirects authenticated users away from auth pages (/login, /register) to /notes
+const PublicOnlyRoute = ({ children }) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        return <Navigate to="/notes" replace />;
+    }
+    return children;
+};
 
+function App() {
     return (
         <BrowserRouter>
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <Routes>
-                        <Route path="/" element={<Navigate to="/notes" />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Register />} />
+                        <Route path="/" element={<Navigate to="/notes" replace />} />
+                        <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+                        <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
                         <Route path="/notes" element={<Notes />} />
                     </Routes>
                 </div>

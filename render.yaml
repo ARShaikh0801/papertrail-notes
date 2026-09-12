@@ -3,7 +3,7 @@ services:
     name: papertrail-backend
     runtime: python
     buildCommand: ./build.sh
-    startCommand: gunicorn notes.wsgi:application
+    startCommand: celery -A notes worker --loglevel=info --concurrency=2 & gunicorn notes.wsgi:application
     envVars:
       - key: MONGO_URI
         sync: false

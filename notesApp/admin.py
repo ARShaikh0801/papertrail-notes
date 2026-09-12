@@ -27,23 +27,35 @@ def sync_users_from_mongo():
     except Exception as e:
         print(f"Error syncing users: {e}")
 
+from django.utils import timezone
+
+def make_tz_aware(dt):
+    if dt is None:
+        return None
+    if timezone.is_naive(dt):
+        return timezone.make_aware(dt, datetime.timezone.utc)
+    return dt
+
 def sync_notes_from_mongo():
     try:
         mongo_notes = MongoNote.objects.all()
         mongo_ids = []
         for mn in mongo_notes:
             mongo_ids.append(str(mn.id))
+            username = mn.user.username if hasattr(mn.user, 'username') else str(mn.user)
             NoteORM.objects.update_or_create(
                 mongo_id=str(mn.id),
                 defaults={
-                    'user': mn.user,
+                    'user': username,
                     'title': mn.title,
                     'content': mn.content or '',
                     'is_pinned': mn.is_pinned,
                     'is_checklist': mn.is_checklist,
                     'is_locked': mn.is_locked,
-                    'created_at': mn.created_at,
-                    'updated_at': mn.updated_at,
+                    'is_deleted': getattr(mn, 'is_deleted', False),
+                    'deleted_at': make_tz_aware(getattr(mn, 'deleted_at', None)),
+                    'created_at': make_tz_aware(mn.created_at),
+                    'updated_at': make_tz_aware(mn.updated_at),
                 }
             )
         NoteORM.objects.exclude(mongo_id__in=mongo_ids).delete()
@@ -72,10 +84,6 @@ class UserORMAdmin(admin.ModelAdmin):
     list_display = ('username', 'email', 'mongo_id')
     search_fields = ('username', 'email')
     readonly_fields = ('mongo_id',)
-
-    def changelist_view(self, request, extra_context=None):
-        sync_users_from_mongo()
-        return super().changelist_view(request, extra_context=extra_context)
 
     def delete_model(self, request, obj):
         try:
@@ -119,10 +127,6 @@ class NoteORMAdmin(admin.ModelAdmin):
     search_fields = ('title', 'content', 'user')
     readonly_fields = ('mongo_id', 'created_at', 'updated_at')
 
-    def changelist_view(self, request, extra_context=None):
-        sync_notes_from_mongo()
-        return super().changelist_view(request, extra_context=extra_context)
-
     def delete_model(self, request, obj):
         try:
             MongoNote.objects(id=obj.mongo_id).delete()
@@ -148,9 +152,15 @@ class NoteORMAdmin(admin.ModelAdmin):
             
         super().save_model(request, obj, form, change)
         try:
+            user_obj = MongoUser.objects(username=obj.user).first()
+            if not user_obj:
+                print(f"Warning: MongoUser matching {obj.user} not found during admin save")
+                return
+
             if obj.mongo_id:
                 mn = MongoNote.objects(id=obj.mongo_id).first()
                 if mn:
+                    mn.user = user_obj
                     mn.title = obj.title
                     mn.content = obj.content
                     mn.is_pinned = obj.is_pinned
@@ -160,7 +170,7 @@ class NoteORMAdmin(admin.ModelAdmin):
                     mn.save()
             else:
                 mn = MongoNote(
-                    user=obj.user,
+                    user=user_obj,
                     title=obj.title,
                     content=obj.content or '',
                     is_pinned=obj.is_pinned,
@@ -180,10 +190,6 @@ class NoteORMAdmin(admin.ModelAdmin):
 class StatsORMAdmin(admin.ModelAdmin):
     list_display = ('name', 'count')
     readonly_fields = ('name',)
-
-    def changelist_view(self, request, extra_context=None):
-        sync_stats_from_mongo()
-        return super().changelist_view(request, extra_context=extra_context)
 
     def has_add_permission(self, request):
         return False

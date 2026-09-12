@@ -6,6 +6,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from .models import User, Note, ChecklistItem, Stats, VerificationCode
 from .serializers import RegisterSerializer, LoginSerializer, NoteSerializer
 from .utils import generate_token, get_current_utc_time
+from .tasks import send_email_async
 import datetime
 import secrets
 from django.core.mail import EmailMultiAlternatives
@@ -18,19 +19,27 @@ def health_check(request):
 class StatsView(APIView):
     permission_classes = [AllowAny]
 
+    def get_throttles(self):
+        # Only throttle the increment path — reading stats is unrestricted
+        if self.request.query_params.get('inc') == 'true':
+            self.throttle_scope = 'stats'
+            return [ScopedRateThrottle()]
+        return []
+
     def get(self, request):
+        if request.query_params.get('inc') == 'true':
+            # Atomic increment: prevents race conditions under concurrent requests
+            Stats.objects(name='visitors').update_one(upsert=True, inc__count=1)
+
         try:
             visitor_stats = Stats.objects.get(name='visitors')
+            visitor_count = visitor_stats.count
         except Stats.DoesNotExist:
-            visitor_stats = Stats(name='visitors', count=0)
-        
-        if request.query_params.get('inc') == 'true':
-            visitor_stats.count += 1
-            visitor_stats.save()
-        
+            visitor_count = 0
+
         user_count = User.objects.count()
         return Response({
-            'visitors': visitor_stats.count,
+            'visitors': visitor_count,
             'users': user_count
         })
 
@@ -40,7 +49,9 @@ def send_verification_code_helper(email, is_forgot_password=False):
     user = User.objects(email=email).first()
     if is_forgot_password:
         if not user:
-            return Response({'error_view': 'No account associated with this email'}, status=400)
+            # Return generic success to prevent user enumeration — attacker can't tell
+            # whether the email is registered or not from the API response.
+            return Response({'message': 'If an account with this email exists, a verification code has been sent.'}, status=200)
     else:
         if user:
             return Response({'error_view': 'Email already exists'}, status=400)
@@ -200,12 +211,10 @@ def send_verification_code_helper(email, is_forgot_password=False):
         </body>
         </html>
         """
-        from django.conf import settings
-        msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [email])
-        msg.attach_alternative(html_content, "text/html")
-        msg.send()
+        # Dispatch email task asynchronously via Celery — returns immediately to the HTTP client!
+        send_email_async.delay(subject, text_content, html_content, email)
     except Exception as e:
-        return Response({'error_view': f'Failed to send email: {str(e)}'}, status=500)
+        return Response({'error_view': f'Failed to queue email: {str(e)}'}, status=500)
 
     return Response({'message': 'Verification code sent successfully.'}, status=200)
 
@@ -254,16 +263,24 @@ class RegisterView(APIView):
         if now - verification_record.created_at > datetime.timedelta(minutes=15):
             return Response({'error_view': 'Verification code has expired. Please request a new one.'}, status=400)
 
+        # Brute-force protection: max 10 attempts per code
+        if (verification_record.attempts or 0) >= 10:
+            verification_record.delete()
+            return Response({'error_view': 'Too many failed attempts. Please request a new verification code.'}, status=429)
+
         # Verify code matching
         if verification_record.code != code:
-            return Response({'error_view': 'Invalid verification code'}, status=400)
+            verification_record.attempts = (verification_record.attempts or 0) + 1
+            verification_record.save()
+            remaining = 10 - verification_record.attempts
+            return Response({'error_view': f'Invalid verification code. {remaining} attempts remaining.'}, status=400)
 
         # Success: consume the code and register user
         verification_record.delete()
 
         user = User(username=username, email=email)
         user.set_password(password)
-        token = generate_token(user.id, user.username)
+        token = generate_token(user.id, user.username, user.token_version or 0)
         return Response({'token': token, 'username': user.username}, status=201)
 
 
@@ -313,15 +330,23 @@ class ResetPasswordView(APIView):
         if now - verification_record.created_at > datetime.timedelta(minutes=15):
             return Response({'error_view': 'Verification code has expired. Please request a new one.'}, status=400)
 
+        # Brute-force protection: max 10 attempts per code
+        if (verification_record.attempts or 0) >= 10:
+            verification_record.delete()
+            return Response({'error_view': 'Too many failed attempts. Please request a new verification code.'}, status=429)
+
         # Verify code matching
         if verification_record.code != code:
-            return Response({'error_view': 'Invalid verification code'}, status=400)
+            verification_record.attempts = (verification_record.attempts or 0) + 1
+            verification_record.save()
+            remaining = 10 - verification_record.attempts
+            return Response({'error_view': f'Invalid verification code. {remaining} attempts remaining.'}, status=400)
 
         # Success: consume the code, update password and log user in
         verification_record.delete()
 
         user.set_password(password)
-        token = generate_token(user.id, user.username)
+        token = generate_token(user.id, user.username, user.token_version or 0)
         return Response({'token': token, 'username': user.username}, status=200)
 
 
@@ -341,24 +366,32 @@ class LoginView(APIView):
         if not user or not user.check_password(data['password']):
             return Response({'error_view': 'Invalid credentials'}, status=401)
 
-        token = generate_token(user.id, user.username)
+        token = generate_token(user.id, user.username, user.token_version or 0)
         return Response({'token': token, 'username': user.username})
 
 
-def purge_expired_trash(username):
+def purge_expired_trash(user_input=None):
+    """
+    Purge trashed notes older than 30 days.
+    Intended to be run periodically as a background task / cron job rather than on every GET request.
+    """
     try:
         cutoff = get_current_utc_time() - datetime.timedelta(days=30)
-        Note.objects(user=username, is_deleted=True, deleted_at__lt=cutoff).delete()
+        if user_input:
+            target_user = User.objects(username=user_input).first() if isinstance(user_input, str) else user_input
+            if target_user:
+                Note.objects(user=target_user, is_deleted=True, deleted_at__lt=cutoff).delete()
+        else:
+            Note.objects(is_deleted=True, deleted_at__lt=cutoff).delete()
     except Exception as e:
-        print(f"Error purging expired trash for {username}: {e}")
+        print(f"Error purging expired trash: {e}")
 
 
 class NoteListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        purge_expired_trash(request.user.username)
-        notes = Note.objects(user=request.user.username, is_deleted__ne=True).order_by('-is_pinned', '-created_at')
+        notes = Note.objects(user=request.user, is_deleted__ne=True).order_by('-is_pinned', '-created_at')
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
@@ -372,7 +405,7 @@ class NoteListCreateView(APIView):
 
         data = serializer.validated_data
         note = Note(
-            user=request.user.username,
+            user=request.user,
             title=data.get('title', 'Untitled') or 'Untitled',
             content=data.get('content', ''),
             is_pinned=data.get('is_pinned', False),
@@ -387,14 +420,13 @@ class NoteTrashView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        purge_expired_trash(request.user.username)
-        notes = Note.objects(user=request.user.username, is_deleted=True).order_by('-deleted_at')
+        notes = Note.objects(user=request.user, is_deleted=True).order_by('-deleted_at')
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
     def delete(self, request):
         """Empty trash: permanently delete all trashed notes for user"""
-        Note.objects(user=request.user.username, is_deleted=True).delete()
+        Note.objects(user=request.user, is_deleted=True).delete()
         return Response({'message': 'Trash emptied'}, status=200)
 
 
@@ -403,7 +435,7 @@ class NoteRestoreView(APIView):
 
     def post(self, request, note_id):
         try:
-            note = Note.objects.get(id=note_id, user=request.user.username)
+            note = Note.objects.get(id=note_id, user=request.user)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
@@ -419,7 +451,7 @@ class NotePermanentDeleteView(APIView):
 
     def delete(self, request, note_id):
         try:
-            note = Note.objects.get(id=note_id, user=request.user.username)
+            note = Note.objects.get(id=note_id, user=request.user)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
@@ -432,7 +464,7 @@ class NoteDetailView(APIView):
 
     def patch(self, request, note_id):
         try:
-            note = Note.objects.get(id=note_id, user=request.user.username)
+            note = Note.objects.get(id=note_id, user=request.user)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
@@ -454,7 +486,7 @@ class NoteDetailView(APIView):
 
     def delete(self, request, note_id):
         try:
-            note = Note.objects.get(id=note_id, user=request.user.username)
+            note = Note.objects.get(id=note_id, user=request.user)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
@@ -469,7 +501,7 @@ class NoteLockView(APIView):
 
     def post(self, request, note_id):
         try:
-            note = Note.objects.get(id=note_id, user=request.user.username)
+            note = Note.objects.get(id=note_id, user=request.user)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
@@ -490,7 +522,7 @@ class NoteUnlockView(APIView):
 
     def post(self, request, note_id):
         try:
-            note = Note.objects.get(id=note_id, user=request.user.username)
+            note = Note.objects.get(id=note_id, user=request.user)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 
@@ -509,7 +541,7 @@ class NoteRemoveLockView(APIView):
 
     def post(self, request, note_id):
         try:
-            note = Note.objects.get(id=note_id, user=request.user.username)
+            note = Note.objects.get(id=note_id, user=request.user)
         except Note.DoesNotExist:
             return Response({'error': 'Note not found'}, status=404)
 

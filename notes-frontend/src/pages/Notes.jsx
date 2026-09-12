@@ -45,7 +45,6 @@ function Notes() {
     const navigate = useNavigate();
     const username = localStorage.getItem('username') || 'Guest';
     const isGuest = !localStorage.getItem('token');
-    const bottomRef = useRef(null);
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [viewMode, setViewMode] = useState('all'); // 'all' | 'pinned' | 'trash'
@@ -146,11 +145,6 @@ function Notes() {
     const scrollToTop = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
-
-    // Scroll to bottom when notes list updates
-    useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [notes, trashNotes]);
 
     // Initial fetch
     useEffect(() => { fetchNotes(); }, []);

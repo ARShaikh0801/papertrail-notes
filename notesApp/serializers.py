@@ -16,6 +16,7 @@ class ChecklistItemSerializer(serializers.Serializer):
     checked = serializers.BooleanField(default=False)
 class NoteSerializer(serializers.Serializer):
     id        = serializers.CharField(read_only=True)
+    user      = serializers.SerializerMethodField(read_only=True)
     title     = serializers.CharField(max_length=200, default='Untitled', allow_blank=True, required=False)
     content   = serializers.CharField(default='', allow_blank=True, required=False)
     is_pinned = serializers.BooleanField(default=False)
@@ -26,6 +27,11 @@ class NoteSerializer(serializers.Serializer):
     items        = ChecklistItemSerializer(many=True, required=False)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
+
+    def get_user(self, obj):
+        if hasattr(obj.user, 'username'):
+            return obj.user.username
+        return str(obj.user) if obj.user else ''
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
