@@ -593,3 +593,37 @@ button:disabled {
   margin-bottom: 0.5rem;
   text-align: left;
 }
+
+/* ─────────────────────────────
+   LIMITS BAR & COUNTERS
+───────────────────────────── */
+.note-form-limits-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.4rem;
+  margin-top: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.limit-tag {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  background: var(--amber-pale);
+  padding: 0.18rem 0.55rem;
+  border-radius: 12px;
+  border: 1px solid var(--input-border);
+  transition: all 0.2s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.limit-tag.limit-warning {
+  color: var(--rust);
+  background: var(--error-bg);
+  border-color: var(--rust);
+  font-weight: 600;
+}

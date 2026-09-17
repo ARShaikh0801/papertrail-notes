@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from '../api/axios';
+import { migrateGuestNotes } from '../utils/guestMigration';
 import './register.css';
 import LoginLoader from '../components/LoginLoader';
 
@@ -132,27 +133,8 @@ function Register() {
             if (data.token) localStorage.setItem('token', data.token);
             if (data.username) localStorage.setItem('username', data.username);
 
-            // Migrate guest notes
-            const guestNotes = localStorage.getItem('guest_notes');
-            if (guestNotes) {
-                try {
-                    const notesArray = JSON.parse(guestNotes);
-                    if (notesArray && notesArray.length > 0) {
-                        await Promise.all(notesArray.map(note =>
-                            api.post('/notes/', {
-                                title: note.title,
-                                content: note.content,
-                                is_checklist: note.is_checklist,
-                                is_pinned: note.is_pinned || false,
-                                items: note.items ? note.items.map(item => ({ text: item.text, checked: item.checked })) : []
-                            })
-                        ));
-                    }
-                    localStorage.removeItem('guest_notes');
-                } catch (migrateErr) {
-                    console.error("Failed to migrate guest notes:", migrateErr);
-                }
-            }
+            // Migrate guest notes idempotently
+            await migrateGuestNotes(api);
 
             navigate('/notes');
         } catch (err) {

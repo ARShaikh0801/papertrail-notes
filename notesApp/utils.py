@@ -27,3 +27,39 @@ def decode_token(token):
         return None, 'Token expired'
     except jwt.InvalidTokenError as e:
         return None, f'Invalid token: {str(e)}'
+
+
+import bleach
+
+ALLOWED_TAGS = [
+    'p', 'b', 'i', 'em', 'strong', 'u', 's', 'strike', 'sub', 'sup',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a',
+    'blockquote', 'code', 'pre', 'span', 'br', 'hr', 'div', 'mark',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td', 'input'
+]
+
+ALLOWED_ATTRIBUTES = {
+    'a': ['href', 'title', 'target', 'rel'],
+    'span': ['class', 'style'],
+    'div': ['class', 'style'],
+    'p': ['class', 'style'],
+    'code': ['class'],
+    'input': ['type', 'checked', 'disabled']
+}
+
+ALLOWED_PROTOCOLS = ['http', 'https', 'mailto']
+
+def sanitize_html(html_content):
+    """
+    Sanitize HTML input using bleach to prevent Stored XSS attacks.
+    Strips script tags, event handlers (e.g. onerror=), and malicious protocols.
+    """
+    if not html_content or not isinstance(html_content, str):
+        return ''
+    return bleach.clean(
+        html_content,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        protocols=ALLOWED_PROTOCOLS,
+        strip=True
+    )

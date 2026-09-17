@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from .utils import sanitize_html
 
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=100)
@@ -12,13 +13,17 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField()
 
 class ChecklistItemSerializer(serializers.Serializer):
-    text    = serializers.CharField(default='', allow_blank=True, required=False)
+    text    = serializers.CharField(default='', allow_blank=True, required=False, max_length=500)
     checked = serializers.BooleanField(default=False)
+
+    def validate_text(self, value):
+        return sanitize_html(value)
+
 class NoteSerializer(serializers.Serializer):
     id        = serializers.CharField(read_only=True)
     user      = serializers.SerializerMethodField(read_only=True)
     title     = serializers.CharField(max_length=200, default='Untitled', allow_blank=True, required=False)
-    content   = serializers.CharField(default='', allow_blank=True, required=False)
+    content   = serializers.CharField(default='', allow_blank=True, required=False, max_length=50000)
     is_pinned = serializers.BooleanField(default=False)
     is_checklist = serializers.BooleanField(default=False)
     is_locked = serializers.BooleanField(default=False, read_only=True)
@@ -27,6 +32,23 @@ class NoteSerializer(serializers.Serializer):
     items        = ChecklistItemSerializer(many=True, required=False)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
+
+    def validate_title(self, value):
+        if value:
+            return sanitize_html(value.strip())
+        return 'Untitled'
+
+    def validate_content(self, value):
+        if value:
+            if len(value) > 50000:
+                raise serializers.ValidationError("Note content exceeds maximum allowed size (50,000 characters).")
+            return sanitize_html(value)
+        return ''
+
+    def validate_items(self, value):
+        if value and len(value) > 100:
+            raise serializers.ValidationError("Checklist cannot exceed 100 items.")
+        return value
 
     def get_user(self, obj):
         if hasattr(obj.user, 'username'):

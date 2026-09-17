@@ -39,7 +39,6 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.devtunnels.ms')
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -82,7 +81,7 @@ ROOT_URLCONF = 'notes.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'notesApp' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -103,7 +102,13 @@ WSGI_APPLICATION = 'notes.wsgi.application'
 
 mongoengine.connect(
     db='Notes_2',
-    host=os.getenv('MONGO_URI')
+    host=os.getenv('MONGO_URI'),
+    maxPoolSize=50,
+    minPoolSize=0 if DEBUG else 5,
+    maxIdleTimeMS=45000,
+    connectTimeoutMS=10000,
+    serverSelectionTimeoutMS=10000,
+    uuidRepresentation='standard',
 )
 
 DATABASES = {
@@ -168,8 +173,10 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/day',
         'user': '2000/day',
-        'sensitive': '5/min',  # Custom rate for auth views
-        'stats': '6/hour',    # Limit visitor counter abuse per IP
+        'sensitive': '5/min',   # Custom rate for auth views
+        'stats': '6/hour',     # Limit visitor counter abuse per IP
+        'note_create': '30/min', # Max 30 note creations per minute per user
+        'note_crud': '120/min',  # Max 120 note updates/deletes per minute per user
     }
 }
 
@@ -200,15 +207,38 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Papertrail <no-reply@papertrail.com>')
 EMAIL_TIMEOUT = 5  # Prevent SMTP hangs from killing Gunicorn workers
 
-# Celery Configuration using existing MongoDB as Broker ($0 cost)
-CELERY_BROKER_URL = os.getenv('REDIS_URL') or os.getenv('MONGO_URI')
+# Celery & Caching Configuration (Uses REDIS_URL if set, falls back to Mongo Atlas for Celery and LocMemCache for dev)
+REDIS_URL = os.getenv('REDIS_URL')
+
+if REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
+            'KEY_PREFIX': 'papertrail',
+            'TIMEOUT': 300,  # 5 minutes default cache TTL
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'papertrail-local-cache',
+            'TIMEOUT': 300,
+        }
+    }
+
+CELERY_BROKER_URL = REDIS_URL or os.getenv('MONGO_URI')
+CELERY_RESULT_BACKEND = REDIS_URL or os.getenv('MONGO_URI')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 
 # In local development without REDIS_URL, execute tasks eagerly
-if DEBUG and not os.getenv('REDIS_URL'):
+if DEBUG and not REDIS_URL:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
+
 
 
 

@@ -144,11 +144,14 @@ function QuickCreateForm({ onCreated, apiPost }) {
 
     const addItemAtIndex = (index, text) => {
         setItems(prev => {
+            if (prev.length >= 100) return prev;
             const newItems = [...prev];
             newItems.splice(index, 0, { text, checked: false });
             return newItems;
         });
     };
+
+    const contentCount = editor ? editor.getText().length : (content ? content.length : 0);
     const setItemText = (index, text) => {
         setItems(prev => prev.map((item, idx) => idx === index ? { ...item, text } : item));
     };
@@ -204,6 +207,7 @@ function QuickCreateForm({ onCreated, apiPost }) {
                     type="text"
                     placeholder="Untitled"
                     value={title}
+                    maxLength={200}
                     onChange={e => setTitle(e.target.value)}
                     autoFocus
                 />
@@ -238,13 +242,29 @@ function QuickCreateForm({ onCreated, apiPost }) {
             )}
 
             <div className={`needed-focus ${shouldShow ? '' : 'hidden-quick-field'}`} >
-                <button
-                    className="submit-btn"
-                    onClick={handleCreate}
-                    disabled={loading}
-                >
-                    {loading ? <><Spinner/>&nbsp;Writing…</> : 'Add Note'}
-                </button>
+                <div className="quick-form-footer-row">
+                    <div className="quick-form-limits-bar">
+                        <span className={`limit-tag ${title.length > 180 ? 'limit-warning' : ''}`} title="Title character limit (200 max)">
+                            Title: {title.length}/200
+                        </span>
+                        {isChecklist ? (
+                            <span className={`limit-tag ${items.length >= 90 ? 'limit-warning' : ''}`} title="Checklist items limit (100 max)">
+                                {items.length} / 100 items
+                            </span>
+                        ) : (
+                            <span className={`limit-tag ${contentCount > 45000 ? 'limit-warning' : ''}`} title="Content character limit (50,000 max)">
+                                Content: {contentCount} / 50000
+                            </span>
+                        )}
+                    </div>
+                    <button
+                        className="submit-btn"
+                        onClick={handleCreate}
+                        disabled={loading}
+                    >
+                        {loading ? <><Spinner/>&nbsp;Writing…</> : 'Add Note'}
+                    </button>
+                </div>
             </div>
 
         </div>

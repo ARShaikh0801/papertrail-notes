@@ -59,8 +59,10 @@ function ChecklistBuilder({ items, onAddAtIndex, onRemove, onToggle, onTextChang
         if (e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
-            onAddAtIndex(i + 1, '');
-            focusIndexRef.current = i + 1;
+            if (items.length < 100) {
+                onAddAtIndex(i + 1, '');
+                focusIndexRef.current = i + 1;
+            }
         } else if (e.key === 'Backspace' && items[i].text === '') {
             e.preventDefault();
             e.stopPropagation();
@@ -88,6 +90,7 @@ function ChecklistBuilder({ items, onAddAtIndex, onRemove, onToggle, onTextChang
                                 className="checklist-inline-input"
                                 placeholder="List item"
                                 value={item.text}
+                                maxLength={500}
                                 rows={1}
                                 onChange={(e) => {
                                     onTextChange(i, e.target.value);
@@ -114,14 +117,18 @@ function ChecklistBuilder({ items, onAddAtIndex, onRemove, onToggle, onTextChang
                     </React.Fragment>
                 ))}
                 <div 
-                    className="add-item-row" 
+                    className={`add-item-row ${items.length >= 100 ? 'disabled' : ''}`} 
                     onClick={() => { 
-                        onAddAtIndex(items.length, ''); 
-                        focusIndexRef.current = items.length; 
+                        if (items.length < 100) {
+                            onAddAtIndex(items.length, ''); 
+                            focusIndexRef.current = items.length; 
+                        }
                     }}
                 >
-                    <span className="add-item-icon">+</span>
-                    <span style={{ fontSize: '0.9rem' }}>Add item</span>
+                    <span className="add-item-icon">{items.length >= 100 ? '•' : '+'}</span>
+                    <span style={{ fontSize: '0.9rem' }}>
+                        {items.length >= 100 ? 'Maximum 100 items reached' : 'Add item'}
+                    </span>
                 </div>
                 <div ref={bottomRef} />
             </ul>

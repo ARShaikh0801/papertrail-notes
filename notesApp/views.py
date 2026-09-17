@@ -5,12 +5,39 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import ScopedRateThrottle
 from .models import User, Note, ChecklistItem, Stats, VerificationCode
 from .serializers import RegisterSerializer, LoginSerializer, NoteSerializer
-from .utils import generate_token, get_current_utc_time
+from .utils import generate_token, get_current_utc_time, sanitize_html
 from .tasks import send_email_async
 import datetime
+import math
 import secrets
 from django.core.mail import EmailMultiAlternatives
 from django.http import JsonResponse
+from django.core.cache import cache
+
+def get_user_cache_version(user_id):
+    """Get or initialize user's cache version number."""
+    key = f"user_cache_ver:{user_id}"
+    try:
+        version = cache.get(key)
+        if version is None:
+            version = 1
+            cache.set(key, version, timeout=86400 * 30)
+        return version
+    except Exception as e:
+        print(f"Cache version read error: {e}")
+        return 1
+
+def invalidate_user_cache(user_id):
+    """Increment user's cache version to invalidate all cached note views in O(1) time."""
+    key = f"user_cache_ver:{user_id}"
+    try:
+        cache.incr(key)
+    except Exception:
+        try:
+            cache.set(key, 2, timeout=86400 * 30)
+        except Exception as e:
+            print(f"Cache invalidate error: {e}")
+
 
 def health_check(request):
     return JsonResponse({'status': 'healthy'})
@@ -20,7 +47,7 @@ class StatsView(APIView):
     permission_classes = [AllowAny]
 
     def get_throttles(self):
-        # Only throttle the increment path — reading stats is unrestricted
+        # Only throttle the increment path - reading stats is unrestricted
         if self.request.query_params.get('inc') == 'true':
             self.throttle_scope = 'stats'
             return [ScopedRateThrottle()]
@@ -49,7 +76,7 @@ def send_verification_code_helper(email, is_forgot_password=False):
     user = User.objects(email=email).first()
     if is_forgot_password:
         if not user:
-            # Return generic success to prevent user enumeration — attacker can't tell
+            # Return generic success to prevent user enumeration - attacker can't tell
             # whether the email is registered or not from the API response.
             return Response({'message': 'If an account with this email exists, a verification code has been sent.'}, status=200)
     else:
@@ -211,7 +238,7 @@ def send_verification_code_helper(email, is_forgot_password=False):
         </body>
         </html>
         """
-        # Dispatch email task asynchronously via Celery — returns immediately to the HTTP client!
+        # Dispatch email task asynchronously via Celery - returns immediately to the HTTP client!
         send_email_async.delay(subject, text_content, html_content, email)
     except Exception as e:
         return Response({'error_view': f'Failed to queue email: {str(e)}'}, status=500)
@@ -387,23 +414,122 @@ def purge_expired_trash(user_input=None):
         print(f"Error purging expired trash: {e}")
 
 
+def paginate_queryset(request, queryset, cursor_field='created_at', default_per_page=50, max_per_page=100):
+    """
+    Supports offset (page & per_page/limit) and cursor-based pagination for MongoEngine querysets.
+    Returns: (meta_dict, paginated_queryset)
+    """
+    page_param = request.query_params.get('page')
+    per_page_param = request.query_params.get('per_page') or request.query_params.get('limit')
+    cursor = request.query_params.get('cursor')
+    paginate = request.query_params.get('paginate')
+
+    should_paginate = (page_param is not None or per_page_param is not None or cursor or paginate == 'true')
+
+    if not should_paginate:
+        return None, queryset
+
+    try:
+        per_page = int(per_page_param) if per_page_param else default_per_page
+    except ValueError:
+        per_page = default_per_page
+    per_page = max(1, min(per_page, max_per_page))
+
+    try:
+        page = int(page_param) if page_param else 1
+    except ValueError:
+        page = 1
+    page = max(1, page)
+
+    if cursor:
+        try:
+            cursor_dt = datetime.datetime.fromisoformat(cursor.replace('Z', '+00:00'))
+            filter_kwargs = {f"{cursor_field}__lt": cursor_dt}
+            queryset = queryset.filter(**filter_kwargs)
+        except Exception:
+            pass
+
+    total_count = queryset.count()
+    total_pages = math.ceil(total_count / per_page) if total_count > 0 else 1
+    offset = (page - 1) * per_page
+    paginated_qs = queryset.skip(offset).limit(per_page)
+
+    meta = {
+        'count': total_count,
+        'total_pages': total_pages,
+        'current_page': page,
+        'per_page': per_page,
+        'has_next': page < total_pages,
+        'has_prev': page > 1,
+    }
+    return meta, paginated_qs
+
+
 class NoteListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get_throttles(self):
+        if self.request.method == 'POST':
+            self.throttle_scope = 'note_create'
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+
     def get(self, request):
-        notes = Note.objects(user=request.user, is_deleted__ne=True).order_by('-is_pinned', '-created_at')
+        user_id = str(request.user.id)
+        version = get_user_cache_version(user_id)
+
+        # Build query fingerprint for cache key
+        page = request.query_params.get('page', '1')
+        per_page = request.query_params.get('per_page') or request.query_params.get('limit', '50')
+        cursor = request.query_params.get('cursor', '')
+        paginate = request.query_params.get('paginate', '')
+        cache_key = f"notes:{user_id}:v{version}:p{page}:l{per_page}:c{cursor}:pag{paginate}"
+
+        try:
+            cached_response = cache.get(cache_key)
+            if cached_response is not None:
+                return Response(cached_response)
+        except Exception as e:
+            print(f"Cache read error: {e}")
+
+        notes_qs = Note.objects(user=request.user, is_deleted__ne=True).order_by('-is_pinned', '-created_at')
+        meta, notes = paginate_queryset(request, notes_qs, cursor_field='created_at')
         serializer = NoteSerializer(notes, many=True)
-        return Response(serializer.data)
+        
+        if meta is not None:
+            next_cursor = None
+            if serializer.data:
+                last_note = serializer.data[-1]
+                next_cursor = last_note.get('created_at')
+            meta['next_cursor'] = next_cursor
+            response_data = {
+                **meta,
+                'results': serializer.data
+            }
+        else:
+            response_data = serializer.data
+
+        try:
+            cache.set(cache_key, response_data, timeout=300)  # Cache for 5 mins
+        except Exception as e:
+            print(f"Cache set error: {e}")
+
+        return Response(response_data)
 
     def post(self, request):
         serializer = NoteSerializer(data=request.data)
-        raw_items = request.data.get('items', [])
-        checklist_items = [ChecklistItem(text=i.get('text', ''), checked=i.get('checked', False)) for i in raw_items]
-
         if not serializer.is_valid():
             return Response(serializer.errors, status=400)
 
         data = serializer.validated_data
+        raw_items = data.get('items', [])
+        checklist_items = [
+            ChecklistItem(
+                text=sanitize_html(i.get('text', '')[:500]),
+                checked=i.get('checked', False)
+            ) for i in raw_items[:100]
+        ]
+
         note = Note(
             user=request.user,
             title=data.get('title', 'Untitled') or 'Untitled',
@@ -413,25 +539,71 @@ class NoteListCreateView(APIView):
             items=checklist_items
         )
         note.save()
+        invalidate_user_cache(str(request.user.id))
         return Response(NoteSerializer(note).data, status=201)
 
 
 class NoteTrashView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get_throttles(self):
+        if self.request.method == 'DELETE':
+            self.throttle_scope = 'note_crud'
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+
     def get(self, request):
-        notes = Note.objects(user=request.user, is_deleted=True).order_by('-deleted_at')
+        user_id = str(request.user.id)
+        version = get_user_cache_version(user_id)
+
+        page = request.query_params.get('page', '1')
+        per_page = request.query_params.get('per_page') or request.query_params.get('limit', '50')
+        cursor = request.query_params.get('cursor', '')
+        paginate = request.query_params.get('paginate', '')
+        cache_key = f"trash:{user_id}:v{version}:p{page}:l{per_page}:c{cursor}:pag{paginate}"
+
+        try:
+            cached_response = cache.get(cache_key)
+            if cached_response is not None:
+                return Response(cached_response)
+        except Exception as e:
+            print(f"Cache read error: {e}")
+
+        notes_qs = Note.objects(user=request.user, is_deleted=True).order_by('-deleted_at')
+        meta, notes = paginate_queryset(request, notes_qs, cursor_field='deleted_at')
         serializer = NoteSerializer(notes, many=True)
-        return Response(serializer.data)
+
+        if meta is not None:
+            next_cursor = None
+            if serializer.data:
+                last_note = serializer.data[-1]
+                next_cursor = last_note.get('deleted_at')
+            meta['next_cursor'] = next_cursor
+            response_data = {
+                **meta,
+                'results': serializer.data
+            }
+        else:
+            response_data = serializer.data
+
+        try:
+            cache.set(cache_key, response_data, timeout=300)
+        except Exception as e:
+            print(f"Cache set error: {e}")
+
+        return Response(response_data)
 
     def delete(self, request):
         """Empty trash: permanently delete all trashed notes for user"""
         Note.objects(user=request.user, is_deleted=True).delete()
+        invalidate_user_cache(str(request.user.id))
         return Response({'message': 'Trash emptied'}, status=200)
 
 
 class NoteRestoreView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'note_crud'
 
     def post(self, request, note_id):
         try:
@@ -443,11 +615,14 @@ class NoteRestoreView(APIView):
         note.deleted_at = None
         note.updated_at = get_current_utc_time()
         note.save()
+        invalidate_user_cache(str(request.user.id))
         return Response(NoteSerializer(note).data, status=200)
 
 
 class NotePermanentDeleteView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'note_crud'
 
     def delete(self, request, note_id):
         try:
@@ -456,11 +631,14 @@ class NotePermanentDeleteView(APIView):
             return Response({'error': 'Note not found'}, status=404)
 
         note.delete()
+        invalidate_user_cache(str(request.user.id))
         return Response({'message': 'Note permanently deleted'}, status=200)
 
 
 class NoteDetailView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'note_crud'
 
     def patch(self, request, note_id):
         try:
@@ -470,18 +648,31 @@ class NoteDetailView(APIView):
 
         data = request.data
         if 'title' in data:
-            note.title = data['title'].strip() if data['title'] and data['title'].strip() else 'Untitled'
+            title_val = str(data['title']).strip() if data['title'] else ''
+            note.title = sanitize_html(title_val[:200]) or 'Untitled'
         if 'is_checklist' in data:
-            note.is_checklist = data['is_checklist']
+            note.is_checklist = bool(data['is_checklist'])
         if 'items' in data:
-            note.items = [ChecklistItem(text=i.get('text', ''), checked=i.get('checked', False)) for i in data['items']]
+            raw_items = data['items'] if isinstance(data['items'], list) else []
+            if len(raw_items) > 100:
+                return Response({'error': 'Checklist cannot exceed 100 items.'}, status=400)
+            note.items = [
+                ChecklistItem(
+                    text=sanitize_html(str(i.get('text', ''))[:500]),
+                    checked=bool(i.get('checked', False))
+                ) for i in raw_items[:100]
+            ]
         if 'content' in data:
-            note.content = data['content']
+            content_val = str(data['content']) if data['content'] else ''
+            if len(content_val) > 50000:
+                return Response({'error': 'Note content exceeds maximum allowed size (50,000 characters).'}, status=400)
+            note.content = sanitize_html(content_val)
         if 'is_pinned' in data:
-            note.is_pinned = data['is_pinned']
+            note.is_pinned = bool(data['is_pinned'])
 
         note.updated_at = get_current_utc_time()
         note.save()
+        invalidate_user_cache(str(request.user.id))
         return Response(NoteSerializer(note).data)
 
     def delete(self, request, note_id):
@@ -493,6 +684,7 @@ class NoteDetailView(APIView):
         note.is_deleted = True
         note.deleted_at = get_current_utc_time()
         note.save()
+        invalidate_user_cache(str(request.user.id))
         return Response({'message': 'Note moved to trash'}, status=200)
 
 
@@ -512,6 +704,7 @@ class NoteLockView(APIView):
         if request.user.check_password(password):
             note.is_locked = True
             note.save()
+            invalidate_user_cache(str(request.user.id))
             return Response(NoteSerializer(note).data)
         else:
             return Response({'error': 'Incorrect password'}, status=403)
@@ -552,6 +745,8 @@ class NoteRemoveLockView(APIView):
         if request.user.check_password(password):
             note.is_locked = False
             note.save()
+            invalidate_user_cache(str(request.user.id))
             return Response(NoteSerializer(note).data)
         else:
             return Response({'error': 'Incorrect password'}, status=403)
+

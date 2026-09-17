@@ -22,10 +22,13 @@ class JWTAuthentication(BaseAuthentication):
         except User.DoesNotExist:
             raise AuthenticationFailed('User not found')
 
-        # Validate token_version — rejects tokens issued before a password change
+        # Validate token_version - rejects tokens issued before a password change
         token_version = payload.get('token_version', 0)
         user_token_version = user.token_version or 0
         if token_version != user_token_version:
             raise AuthenticationFailed('Token has been revoked. Please log in again.')
 
         return (user, token)
+
+    def authenticate_header(self, request):
+        return 'Bearer'

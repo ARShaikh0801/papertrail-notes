@@ -110,6 +110,15 @@
   opacity: 1;
 }
 
+.add-item-row.disabled {
+  cursor: url('/cursor-na.svg') 4 4, not-allowed !important;
+  opacity: 0.6;
+}
+
+.add-item-row.disabled:hover {
+  opacity: 0.6;
+}
+
 .add-item-icon {
   font-size: 1.3rem;
   font-weight: 500;

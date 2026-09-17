@@ -1,41 +1,87 @@
+import { idbGet, idbSet, idbDel } from './indexedDB';
+
 const QUEUE_KEY = 'offline_sync_queue';
 const CACHE_KEY = 'cached_notes_logged_in';
+const TRASH_CACHE_KEY = 'cached_trash_notes_logged_in';
 
-export const getOfflineQueue = () => {
+// Migration flag to ensure one-time migration from localStorage to IndexedDB
+let migrationAttempted = false;
+
+async function ensureMigration() {
+    if (migrationAttempted) return;
+    migrationAttempted = true;
     try {
-        const queue = localStorage.getItem(QUEUE_KEY);
-        return queue ? JSON.parse(queue) : [];
+        const oldQueue = localStorage.getItem(QUEUE_KEY);
+        if (oldQueue) {
+            const parsed = JSON.parse(oldQueue);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const currentIdbQueue = (await idbGet(QUEUE_KEY)) || [];
+                await idbSet(QUEUE_KEY, [...currentIdbQueue, ...parsed]);
+            }
+            localStorage.removeItem(QUEUE_KEY);
+        }
+
+        const oldNotes = localStorage.getItem(CACHE_KEY);
+        if (oldNotes) {
+            const parsed = JSON.parse(oldNotes);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                await idbSet(CACHE_KEY, parsed);
+            }
+            localStorage.removeItem(CACHE_KEY);
+        }
+
+        const oldTrash = localStorage.getItem(TRASH_CACHE_KEY);
+        if (oldTrash) {
+            const parsed = JSON.parse(oldTrash);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                await idbSet(TRASH_CACHE_KEY, parsed);
+            }
+            localStorage.removeItem(TRASH_CACHE_KEY);
+        }
     } catch (e) {
-        console.error('Error reading offline queue:', e);
+        console.warn('LocalStorage migration to IndexedDB encountered non-critical error:', e);
+    }
+}
+
+export const getOfflineQueue = async () => {
+    await ensureMigration();
+    try {
+        const queue = await idbGet(QUEUE_KEY);
+        return Array.isArray(queue) ? queue : [];
+    } catch (e) {
+        console.error('Error reading offline queue from IndexedDB:', e);
         return [];
     }
 };
 
-export const saveOfflineQueue = (queue) => {
+export const saveOfflineQueue = async (queue) => {
     try {
-        localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        await idbSet(QUEUE_KEY, queue);
     } catch (e) {
-        console.error('Error saving offline queue:', e);
+        console.error('Error saving offline queue to IndexedDB:', e);
     }
 };
 
-export const clearOfflineQueue = () => {
-    localStorage.removeItem(QUEUE_KEY);
+export const clearOfflineQueue = async () => {
+    try {
+        await idbDel(QUEUE_KEY);
+    } catch (e) {
+        console.error('Error clearing offline queue in IndexedDB:', e);
+    }
 };
 
-export const addToOfflineQueue = (type, noteId, payload = {}, tempId = null) => {
-    const queue = getOfflineQueue();
+export const addToOfflineQueue = async (type, noteId, payload = {}, tempId = null) => {
+    const queue = await getOfflineQueue();
     
-    // Optimizations:
-    // 1. If we are deleting a note that was created offline and not yet synced (has tempId),
-    //    we can just remove the CREATE action and not add a DELETE action.
+    // Optimization 1: If deleting a note that was created offline and not synced yet (tempId),
+    // remove the CREATE action and don't add a DELETE action.
     if (type === 'DELETE' && noteId && String(noteId).startsWith('temp-')) {
         const filtered = queue.filter(item => !(item.type === 'CREATE' && item.tempId === noteId) && item.noteId !== noteId);
-        saveOfflineQueue(filtered);
+        await saveOfflineQueue(filtered);
         return;
     }
 
-    // 2. If we are updating a note that is already queued for update, merge the payloads.
+    // Optimization 2: Merge UPDATE payloads if note is already queued for update.
     if (type === 'UPDATE') {
         const existingUpdateIndex = queue.findIndex(item => item.type === 'UPDATE' && item.noteId === noteId);
         if (existingUpdateIndex !== -1) {
@@ -43,7 +89,7 @@ export const addToOfflineQueue = (type, noteId, payload = {}, tempId = null) => 
                 ...queue[existingUpdateIndex].payload,
                 ...payload
             };
-            saveOfflineQueue(queue);
+            await saveOfflineQueue(queue);
             return;
         }
     }
@@ -55,49 +101,49 @@ export const addToOfflineQueue = (type, noteId, payload = {}, tempId = null) => 
         payload,
         tempId
     });
-    saveOfflineQueue(queue);
+    await saveOfflineQueue(queue);
 };
 
-export const getCachedNotes = () => {
+export const getCachedNotes = async () => {
+    await ensureMigration();
     try {
-        const notes = localStorage.getItem(CACHE_KEY);
-        return notes ? JSON.parse(notes) : [];
+        const notes = await idbGet(CACHE_KEY);
+        return Array.isArray(notes) ? notes : [];
     } catch (e) {
-        console.error('Error reading cached notes:', e);
+        console.error('Error reading cached notes from IndexedDB:', e);
         return [];
     }
 };
 
-export const saveCachedNotes = (notes) => {
+export const saveCachedNotes = async (notes) => {
     try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(notes));
+        await idbSet(CACHE_KEY, notes);
     } catch (e) {
-        console.error('Error saving cached notes:', e);
+        console.error('Error saving cached notes to IndexedDB:', e);
     }
 };
 
-const TRASH_CACHE_KEY = 'cached_trash_notes_logged_in';
-
-export const getCachedTrash = () => {
+export const getCachedTrash = async () => {
+    await ensureMigration();
     try {
-        const notes = localStorage.getItem(TRASH_CACHE_KEY);
-        return notes ? JSON.parse(notes) : [];
+        const notes = await idbGet(TRASH_CACHE_KEY);
+        return Array.isArray(notes) ? notes : [];
     } catch (e) {
-        console.error('Error reading cached trash:', e);
+        console.error('Error reading cached trash from IndexedDB:', e);
         return [];
     }
 };
 
-export const saveCachedTrash = (notes) => {
+export const saveCachedTrash = async (notes) => {
     try {
-        localStorage.setItem(TRASH_CACHE_KEY, JSON.stringify(notes));
+        await idbSet(TRASH_CACHE_KEY, notes);
     } catch (e) {
-        console.error('Error saving cached trash:', e);
+        console.error('Error saving cached trash to IndexedDB:', e);
     }
 };
 
 export const syncOfflineQueue = async (api) => {
-    let queue = getOfflineQueue();
+    let queue = await getOfflineQueue();
     if (queue.length === 0) return { success: true, count: 0 };
 
     const tempIdMap = {};
@@ -128,27 +174,23 @@ export const syncOfflineQueue = async (api) => {
             }
         } catch (error) {
             console.error('Failed to sync offline action:', action, error);
-            // If the failure is 404 (note not found), we should skip and continue.
-            // Otherwise, we stop syncing to prevent out-of-order execution issues.
             if (error.response?.status === 404) {
                 continue;
             }
-            // Save the remaining items in queue
             const failedIndex = queue.indexOf(action);
             if (failedIndex !== -1) {
-                // Update remaining items with updated tempIdMap
                 const remaining = queue.slice(failedIndex).map(item => {
                     if (item.noteId && tempIdMap[item.noteId]) {
                         return { ...item, noteId: tempIdMap[item.noteId] };
                     }
                     return item;
                 });
-                saveOfflineQueue(remaining);
+                await saveOfflineQueue(remaining);
             }
             throw error;
         }
     }
 
-    clearOfflineQueue();
+    await clearOfflineQueue();
     return { success: true, count: queue.length };
 };
