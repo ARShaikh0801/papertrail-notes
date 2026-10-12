@@ -225,19 +225,23 @@ function CreateNoteModal({ onClose, onCreated, apiPost, apiPatch }) {
         }
     }, [title, content, items, isChecklist]);
 
-    // Save on close
-    const handleClose = async () => {
+    // Save on close — close UI immediately, save in background
+    const handleClose = () => {
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
             saveTimeoutRef.current = null;
         }
-        // Save whatever we have
-        await performSave({ title, content, items, isChecklist });
-        if (noteIdRef.current) {
-            onCreated();
-        }
+        // Close modal instantly for snappy UX
+        const hadNote = !!noteIdRef.current;
         onClose();
+        // Fire save + refresh in the background (non-blocking)
+        performSave({ title, content, items, isChecklist }).then(() => {
+            if (hadNote || noteIdRef.current) {
+                onCreated();
+            }
+        });
     };
+
 
     return (
         <div className="modal-overlay">

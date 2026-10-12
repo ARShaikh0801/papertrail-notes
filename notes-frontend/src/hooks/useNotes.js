@@ -108,12 +108,17 @@ export function useNotes(isGuest, navigate) {
             return;
         }
 
+        // Optimistic update: apply immediately, revert on failure
+        const previousNotes = notes;
+        const updated = notes.map(n => n.id === note.id ? { ...n, is_pinned: !n.is_pinned } : n);
+        setNotes(sortNotes(updated));
+        setPinLoading(null);
+
         try {
             await api.patch(`/notes/${note.id}/`, { is_pinned: !note.is_pinned });
-            if (refreshNotes) refreshNotes();
-        } catch (_) { }
-        finally {
-            setPinLoading(null);
+        } catch (_) {
+            // Revert on failure
+            setNotes(previousNotes);
         }
     }, [isGuest, notes]);
 
@@ -152,7 +157,11 @@ export function useNotes(isGuest, navigate) {
             return Promise.resolve({ data: newNote });
         }
 
-        return api.post('/notes/', payload);
+        return api.post('/notes/', payload).then(res => {
+            // Optimistically insert the new note into local state immediately
+            setNotes(prev => sortNotes([res.data, ...prev]));
+            return res;
+        });
     }, [isGuest, notes]);
 
     const apiPatch = useCallback(async (id, payload, showToast) => {

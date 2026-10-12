@@ -236,15 +236,20 @@ function EditNoteModal({ note, onClose, onSaved, apiPatch }) {
         }
     }, [title, content, items, isChecklist]);
 
-    const handleClose = async () => {
+    // Close modal instantly, save in background
+    const handleClose = () => {
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
             saveTimeoutRef.current = null;
         }
-        await performSave({ title, content, items, isChecklist });
-        onSaved();
+        // Close UI immediately for snappy UX
         onClose();
+        // Fire save + refresh in the background (non-blocking)
+        performSave({ title, content, items, isChecklist }).then(() => {
+            onSaved();
+        });
     };
+
 
     return (
         <div className="modal-overlay">

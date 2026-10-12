@@ -30,6 +30,7 @@ def decode_token(token):
 
 
 import bleach
+from bleach.css_sanitizer import CSSSanitizer
 
 ALLOWED_TAGS = [
     'p', 'b', 'i', 'em', 'strong', 'u', 's', 'strike', 'sub', 'sup',
@@ -49,10 +50,20 @@ ALLOWED_ATTRIBUTES = {
 
 ALLOWED_PROTOCOLS = ['http', 'https', 'mailto']
 
+# Whitelist only the CSS properties that TipTap's rich-text extensions produce.
+# This ensures color & font-size survive sanitization while blocking dangerous CSS.
+ALLOWED_CSS_PROPERTIES = [
+    'color', 'font-size', 'font-weight', 'font-style',
+    'text-decoration', 'text-align', 'background-color',
+]
+
+css_sanitizer = CSSSanitizer(allowed_css_properties=ALLOWED_CSS_PROPERTIES)
+
 def sanitize_html(html_content):
     """
     Sanitize HTML input using bleach to prevent Stored XSS attacks.
     Strips script tags, event handlers (e.g. onerror=), and malicious protocols.
+    Preserves safe inline CSS (color, font-size, etc.) via CSSSanitizer.
     """
     if not html_content or not isinstance(html_content, str):
         return ''
@@ -61,5 +72,6 @@ def sanitize_html(html_content):
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
         protocols=ALLOWED_PROTOCOLS,
+        css_sanitizer=css_sanitizer,
         strip=True
     )
