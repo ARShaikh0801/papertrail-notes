@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import api from "../api/axios";
 import {
     getCachedNotes,
@@ -20,6 +20,13 @@ export function useNotes(isGuest, navigate) {
     const [notes, setNotes] = useState([]);
     const [pageLoading, setPageLoading] = useState(true);
     const [pinLoading, setPinLoading] = useState(null);
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    // Cursor pagination state — next_cursor is treated as an opaque string
+    const nextCursorRef = useRef(null);
+    const hasMoreRef = useRef(false);
+    const [hasMore, setHasMore] = useState(false);
+    const [totalCount, setTotalCount] = useState(0);
 
     const [passwordModal, setPasswordModal] = useState({
         isOpen: false,
@@ -42,10 +49,15 @@ export function useNotes(isGuest, navigate) {
                 }
 
                 setNotes(sortNotes(parsedNotes));
+                setTotalCount(parsedNotes.length);
+                nextCursorRef.current = null;
+                hasMoreRef.current = false;
+                setHasMore(false);
                 if (setTrashNotes) setTrashNotes(parsedTrash);
             } catch (err) {
                 console.error(err);
                 setNotes([]);
+                setTotalCount(0);
                 if (setTrashNotes) setTrashNotes([]);
             } finally {
                 setPageLoading(false);
@@ -57,20 +69,42 @@ export function useNotes(isGuest, navigate) {
             const cached = await getCachedNotes();
             const cachedTrash = await getCachedTrash();
             setNotes(sortNotes(cached));
+            setTotalCount(cached.length);
+            nextCursorRef.current = null;
+            hasMoreRef.current = false;
+            setHasMore(false);
             if (setTrashNotes) setTrashNotes(cachedTrash);
             setPageLoading(false);
             return;
         }
 
         try {
+            // First page: use paginate=true, do NOT send cursor param
             const [{ data: activeData }, { data: trashData }] = await Promise.all([
-                api.get('/notes/'),
+                api.get('/notes/', { params: { paginate: 'true' } }),
                 api.get('/notes/trash/')
             ]);
+
             const activeNotesList = Array.isArray(activeData) ? activeData : (activeData?.results || []);
             const trashNotesList = Array.isArray(trashData) ? trashData : (trashData?.results || []);
+
             setNotes(activeNotesList);
             if (setTrashNotes) setTrashNotes(trashNotesList);
+
+            // Store cursor pagination meta (cursor mode)
+            if (!Array.isArray(activeData) && activeData?.has_next !== undefined) {
+                const cursor = activeData.next_cursor || null;
+                nextCursorRef.current = cursor;
+                hasMoreRef.current = !!activeData.has_next;
+                setHasMore(!!activeData.has_next);
+                setTotalCount(activeData.count ?? activeNotesList.length);
+            } else {
+                nextCursorRef.current = null;
+                hasMoreRef.current = false;
+                setHasMore(false);
+                setTotalCount(activeNotesList.length);
+            }
+
             await saveCachedNotes(activeNotesList);
             await saveCachedTrash(trashNotesList);
         } catch (err) {
@@ -80,12 +114,69 @@ export function useNotes(isGuest, navigate) {
                 const cached = await getCachedNotes();
                 const cachedTrash = await getCachedTrash();
                 setNotes(sortNotes(cached));
+                setTotalCount(cached.length);
+                nextCursorRef.current = null;
+                hasMoreRef.current = false;
+                setHasMore(false);
                 if (setTrashNotes) setTrashNotes(cachedTrash);
             }
         } finally {
             setPageLoading(false);
         }
     }, [isGuest, navigate]);
+
+    /**
+     * Load the next page of notes using the opaque cursor string from the backend.
+     * The cursor is passed back exactly as received - never parsed or constructed.
+     * Does nothing if has_next was false or no cursor is available.
+     */
+    const loadMoreNotes = useCallback(async () => {
+        // Rule 3: has_next false => don't send another request
+        if (!hasMoreRef.current || !nextCursorRef.current || loadingMore) return;
+
+        setLoadingMore(true);
+        try {
+            // Rule 1: pass cursor as-is (opaque string)
+            const { data } = await api.get('/notes/', {
+                params: { cursor: nextCursorRef.current, paginate: 'true' }
+            });
+
+            const newNotes = Array.isArray(data) ? data : (data?.results || []);
+
+            // Append new notes, deduplicate by id
+            setNotes(prev => {
+                const existingIds = new Set(prev.map(n => n.id));
+                const uniqueNew = newNotes.filter(n => !existingIds.has(n.id));
+                return [...prev, ...uniqueNew];
+            });
+
+            // Update cursor state
+            if (!Array.isArray(data) && data?.has_next !== undefined) {
+                const cursor = data.next_cursor || null;
+                nextCursorRef.current = cursor;
+                hasMoreRef.current = !!data.has_next;
+                setHasMore(!!data.has_next);
+                // Rule 4: count is total notes, update it
+                if (data.count !== undefined) {
+                    setTotalCount(data.count);
+                }
+            } else {
+                nextCursorRef.current = null;
+                hasMoreRef.current = false;
+                setHasMore(false);
+            }
+
+            // Update offline cache with all accumulated notes
+            setNotes(currentNotes => {
+                saveCachedNotes(currentNotes);
+                return currentNotes;
+            });
+        } catch (err) {
+            console.error('Error loading more notes:', err);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [loadingMore]);
 
     const handlePin = useCallback(async (e, note, showToast, refreshNotes) => {
         e.stopPropagation();
@@ -137,6 +228,7 @@ export function useNotes(isGuest, navigate) {
                 localStorage.setItem('guest_notes', JSON.stringify(updated));
                 return updated;
             });
+            setTotalCount(prev => prev + 1);
             return Promise.resolve({ data: newNote });
         }
 
@@ -151,6 +243,7 @@ export function useNotes(isGuest, navigate) {
             };
             const updated = [newNote, ...notes];
             setNotes(sortNotes(updated));
+            setTotalCount(prev => prev + 1);
             await saveCachedNotes(updated);
             await addToOfflineQueue('CREATE', tempId, payload, tempId);
             showToast("Note created offline. Will sync when online.", "success");
@@ -160,6 +253,7 @@ export function useNotes(isGuest, navigate) {
         return api.post('/notes/', payload).then(res => {
             // Optimistically insert the new note into local state immediately
             setNotes(prev => sortNotes([res.data, ...prev]));
+            setTotalCount(prev => prev + 1);
             return res;
         });
     }, [isGuest, notes]);
@@ -286,9 +380,13 @@ export function useNotes(isGuest, navigate) {
         setNotes,
         pageLoading,
         pinLoading,
+        loadingMore,
+        hasMore,
+        totalCount,
         passwordModal,
         setPasswordModal,
         fetchNotes,
+        loadMoreNotes,
         handlePin,
         apiPost,
         apiPatch,

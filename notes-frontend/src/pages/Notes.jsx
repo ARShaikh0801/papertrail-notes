@@ -28,11 +28,12 @@ const pageMessages = [
 function NotesContent() {
     const {
         username, isGuest, isOnline, logOutLoading, handleLogout,
-        notes, trashNotes, pageLoading, pinLoading, delLoading, restoreLoading, permDelLoading, emptyTrashLoading,
+        notes, trashNotes, pageLoading, pinLoading, loadingMore, hasMore, totalCount,
+        delLoading, restoreLoading, permDelLoading, emptyTrashLoading,
         sidebarOpen, setSidebarOpen, viewMode, setViewMode, searchQuery, handleSearch, handleClearSearch,
         pinnedNotesCount, displayedNotes, filteredNotes,
         createOpen, setCreateOpen, editNote, setEditNote, passwordModal, setPasswordModal, confirmModal, setConfirmModal,
-        fetchNotes, handlePin, handleDelete, handleRestore, handlePermanentDelete, handleEmptyTrash,
+        fetchNotes, loadMoreNotes, handlePin, handleDelete, handleRestore, handlePermanentDelete, handleEmptyTrash,
         handleLockToggle, handleEditClick, handlePasswordSubmit, apiPost, apiPatch, toasts
     } = useNoteContext();
 
@@ -65,7 +66,7 @@ function NotesContent() {
                 onClose={() => setSidebarOpen(false)}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
-                notesCount={notes.length}
+                notesCount={totalCount}
                 trashCount={trashNotes.length}
                 pinnedCount={pinnedNotesCount}
                 username={username}
@@ -121,6 +122,9 @@ function NotesContent() {
                 restoreLoading={restoreLoading}
                 onPermanentDelete={handlePermanentDelete}
                 permDelLoading={permDelLoading}
+                hasMore={hasMore}
+                loadingMore={loadingMore}
+                onLoadMore={loadMoreNotes}
             />
 
             {viewMode === 'all' && (

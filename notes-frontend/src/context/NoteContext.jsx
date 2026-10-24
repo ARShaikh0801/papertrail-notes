@@ -27,8 +27,10 @@ export function NoteProvider({ children }) {
     const trashState = useTrash(isGuest);
 
     const {
-        notes, setNotes, pageLoading, pinLoading, passwordModal, setPasswordModal,
-        fetchNotes: baseFetchNotes, handlePin: baseHandlePin, apiPost: baseApiPost,
+        notes, setNotes, pageLoading, pinLoading, loadingMore, hasMore, totalCount,
+        passwordModal, setPasswordModal,
+        fetchNotes: baseFetchNotes, loadMoreNotes,
+        handlePin: baseHandlePin, apiPost: baseApiPost,
         apiPatch: baseApiPatch, handleLockToggle: baseHandleLockToggle,
         handleEditClick: baseHandleEditClick, handlePasswordSubmit: baseHandlePasswordSubmit
     } = notesState;
@@ -143,6 +145,9 @@ export function NoteProvider({ children }) {
         trashNotes,
         pageLoading,
         pinLoading,
+        loadingMore,
+        hasMore,
+        totalCount,
         delLoading,
         restoreLoading,
         permDelLoading,
@@ -172,6 +177,7 @@ export function NoteProvider({ children }) {
 
         // Operations
         fetchNotes,
+        loadMoreNotes,
         handlePin,
         handleDelete,
         handleRestore,

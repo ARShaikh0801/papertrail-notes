@@ -263,6 +263,102 @@ button:disabled {
 }
 
 /* ─────────────────────────────
+   LOAD MORE / CURSOR PAGINATION
+───────────────────────────── */
+.load-more-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 2rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 2rem;
+  border-radius: 24px;
+  border: 1px solid var(--input-border);
+  background: var(--warm-white);
+  color: var(--amber);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: url('/cursor-pointer.svg') 4 4, pointer;
+  box-shadow: 0 2px 8px rgba(100, 70, 30, 0.08);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.load-more-btn:hover {
+  background: linear-gradient(135deg, var(--amber) 0%, var(--rust) 100%);
+  color: var(--warm-white);
+  border-color: var(--amber);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.25);
+  transform: translateY(-2px);
+}
+
+.load-more-btn:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 2px 8px rgba(160, 82, 45, 0.2);
+}
+
+.load-more-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  color: var(--ink-faint);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.load-more-sentinel {
+  height: 1px;
+  width: 1px;
+  pointer-events: none;
+}
+
+.all-loaded-hint {
+  text-align: center;
+  padding: 1rem 2rem 1.5rem;
+  font-family: 'Lora', serif;
+  font-style: italic;
+  font-size: 0.88rem;
+  color: var(--ink-faint);
+  opacity: 0.6;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@media (max-width: 768px) {
+  .load-more-section {
+    padding: 1rem 1rem 1.5rem;
+  }
+
+  .load-more-btn {
+    padding: 0.55rem 1.6rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .load-more-section {
+    padding: 0.8rem 0.6rem 1.2rem;
+  }
+
+  .load-more-btn {
+    padding: 0.5rem 1.4rem;
+    font-size: 0.82rem;
+  }
+}
+
+/* ─────────────────────────────
    GUEST BANNER
 ───────────────────────────── */
 .guest-banner {

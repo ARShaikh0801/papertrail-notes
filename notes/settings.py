@@ -239,6 +239,14 @@ if DEBUG and not REDIS_URL:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
 
+# Periodic task beat schedule (daily auto-purge for trashed notes older than 30 days)
+CELERY_BEAT_SCHEDULE = {
+    'purge-expired-trash-daily': {
+        'task': 'notesApp.tasks.purge_expired_trash_task',
+        'schedule': 86400.0,
+    },
+}
+
 
 
 

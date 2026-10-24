@@ -10,6 +10,10 @@ from .tasks import send_email_async
 import datetime
 import math
 import secrets
+import base64
+from mongoengine import Q
+from bson import ObjectId
+from rest_framework.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.http import JsonResponse
 from django.core.cache import cache
@@ -400,31 +404,130 @@ class LoginView(APIView):
 def purge_expired_trash(user_input=None):
     """
     Purge trashed notes older than 30 days.
-    Intended to be run periodically as a background task / cron job rather than on every GET request.
+    Can be run periodically via Celery/management command, or on demand during note/trash retrieval.
     """
     try:
         cutoff = get_current_utc_time() - datetime.timedelta(days=30)
+        deleted_count = 0
         if user_input:
             target_user = User.objects(username=user_input).first() if isinstance(user_input, str) else user_input
             if target_user:
-                Note.objects(user=target_user, is_deleted=True, deleted_at__lt=cutoff).delete()
+                deleted_count = Note.objects(
+                    user=target_user,
+                    is_deleted=True,
+                    deleted_at__exists=True,
+                    deleted_at__ne=None,
+                    deleted_at__lt=cutoff
+                ).delete()
+                if deleted_count:
+                    invalidate_user_cache(str(target_user.id))
         else:
-            Note.objects(is_deleted=True, deleted_at__lt=cutoff).delete()
+            deleted_count = Note.objects(
+                is_deleted=True,
+                deleted_at__exists=True,
+                deleted_at__ne=None,
+                deleted_at__lt=cutoff
+            ).delete()
+        return deleted_count
     except Exception as e:
         print(f"Error purging expired trash: {e}")
+        return 0
+
+
+def encode_cursor(is_pinned=None, dt_value=None, note_id=None, note=None):
+    if note is not None:
+        is_pinned = getattr(note, 'is_pinned', False)
+        dt_value = getattr(note, 'created_at', None)
+        note_id = getattr(note, 'id', None)
+
+    if dt_value is None or note_id is None or is_pinned is None:
+        return None
+
+    flag = "1" if (is_pinned is True or is_pinned == 1 or is_pinned == '1') else "0"
+    if isinstance(dt_value, (datetime.datetime, datetime.date)):
+        dt_str = dt_value.isoformat()
+    else:
+        dt_str = str(dt_value)
+    id_str = str(note_id)
+
+    raw = f"v1|{flag}|{dt_str}|{id_str}"
+    return base64.urlsafe_b64encode(raw.encode('utf-8')).decode('utf-8')
+
+
+def decode_cursor(cursor_str):
+    if not cursor_str or not isinstance(cursor_str, str):
+        raise ValueError("Invalid cursor format.")
+
+    s = cursor_str.strip()
+    try:
+        padded = s + '=' * (-len(s) % 4)
+        raw_bytes = base64.urlsafe_b64decode(padded.encode('utf-8'))
+        decoded = raw_bytes.decode('utf-8')
+    except Exception as e:
+        raise ValueError("Invalid cursor format.") from e
+
+    parts = decoded.split('|')
+    if len(parts) != 4:
+        raise ValueError("Invalid cursor format.")
+
+    version, flag_str, dt_str, id_str = parts
+
+    if version != 'v1':
+        raise ValueError("Invalid cursor format.")
+
+    if flag_str == '1':
+        is_pinned = True
+    elif flag_str == '0':
+        is_pinned = False
+    else:
+        raise ValueError("Invalid cursor format.")
+
+    if not dt_str:
+        raise ValueError("Invalid cursor format.")
+
+    try:
+        cursor_dt = datetime.datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+    except Exception as e:
+        raise ValueError("Invalid cursor format.") from e
+
+    if not id_str or not ObjectId.is_valid(id_str):
+        raise ValueError("Invalid cursor format.")
+
+    cursor_id = ObjectId(id_str)
+    return is_pinned, cursor_dt, cursor_id
 
 
 def paginate_queryset(request, queryset, cursor_field='created_at', default_per_page=50, max_per_page=100):
     """
     Supports offset (page & per_page/limit) and cursor-based pagination for MongoEngine querysets.
-    Returns: (meta_dict, paginated_queryset)
+
+    Modes:
+    1. Offset Pagination:
+       - Triggered by `page`, `per_page`/`limit`, or `paginate='true'` when `cursor` is omitted.
+       - Clamps `per_page` to [1, max_per_page] (defaults to default_per_page on invalid or missing values).
+       - Returns standard offset metadata: count, total_pages, current_page, per_page, has_next, has_prev.
+    2. Cursor Pagination:
+       - Triggered by the `cursor` query parameter.
+       - Format: URL-safe base64 of "v1|<is_pinned: 0 or 1>|<ISO datetime>|<note id>".
+       - Total ordering: ordered by -is_pinned, -created_at, -id. Tie-breaking using Note ObjectId
+         prevents duplicate or skipped records even when items share identical timestamps.
+       - Guarantees:
+         * count: total number of user's active notes on base queryset, invariant across pages.
+         * has_next: strictly accurate, including boundary cases where the last page is exactly full.
+         * next_cursor: non-null string whenever has_next is True; null on the last page or when results are empty.
+         * Compatibility keys: current_page, total_pages, and has_prev are retained for schema
+           consistency but are not meaningful for cursor navigation.
+         * Soft-deleted notes and notes from other users are strictly excluded on every page.
+
+    Returns:
+        (meta_dict, paginated_items)
     """
     page_param = request.query_params.get('page')
     per_page_param = request.query_params.get('per_page') or request.query_params.get('limit')
-    cursor = request.query_params.get('cursor')
+    cursor = request.query_params.get('cursor') or None
     paginate = request.query_params.get('paginate')
 
-    should_paginate = (page_param is not None or per_page_param is not None or cursor or paginate == 'true')
+    should_paginate = (page_param is not None or per_page_param is not None or cursor is not None or paginate == 'true')
 
     if not should_paginate:
         return None, queryset
@@ -441,28 +544,52 @@ def paginate_queryset(request, queryset, cursor_field='created_at', default_per_
         page = 1
     page = max(1, page)
 
-    if cursor:
-        try:
-            cursor_dt = datetime.datetime.fromisoformat(cursor.replace('Z', '+00:00'))
-            filter_kwargs = {f"{cursor_field}__lt": cursor_dt}
-            queryset = queryset.filter(**filter_kwargs)
-        except Exception:
-            pass
-
+    # Base count on queryset before applying cursor filter
     total_count = queryset.count()
     total_pages = math.ceil(total_count / per_page) if total_count > 0 else 1
-    offset = (page - 1) * per_page
-    paginated_qs = queryset.skip(offset).limit(per_page)
+
+    if cursor is not None:
+        try:
+            is_pinned, cursor_dt, cursor_id = decode_cursor(cursor)
+        except Exception:
+            raise ValidationError({'cursor': 'Invalid cursor format.'})
+
+        if cursor_field == 'created_at':
+            if is_pinned:
+                filter_q = (
+                    Q(is_pinned=True) & (
+                        Q(**{f"{cursor_field}__lt": cursor_dt}) |
+                        (Q(**{cursor_field: cursor_dt}) & Q(id__lt=cursor_id))
+                    )
+                ) | Q(is_pinned__ne=True)
+            else:
+                filter_q = (
+                    Q(is_pinned__ne=True) & (
+                        Q(**{f"{cursor_field}__lt": cursor_dt}) |
+                        (Q(**{cursor_field: cursor_dt}) & Q(id__lt=cursor_id))
+                    )
+                )
+
+        cursor_qs = queryset.filter(filter_q)
+        items = list(cursor_qs.limit(per_page + 1))
+        has_next = len(items) > per_page
+        paginated_items = items[:per_page]
+        has_prev = True
+    else:
+        offset = (page - 1) * per_page
+        paginated_items = list(queryset.skip(offset).limit(per_page))
+        has_next = page < total_pages
+        has_prev = page > 1
 
     meta = {
         'count': total_count,
         'total_pages': total_pages,
         'current_page': page,
         'per_page': per_page,
-        'has_next': page < total_pages,
-        'has_prev': page > 1,
+        'has_next': has_next,
+        'has_prev': has_prev,
     }
-    return meta, paginated_qs
+    return meta, paginated_items
 
 
 class NoteListCreateView(APIView):
@@ -492,15 +619,14 @@ class NoteListCreateView(APIView):
         except Exception as e:
             print(f"Cache read error: {e}")
 
-        notes_qs = Note.objects(user=request.user, is_deleted__ne=True).order_by('-is_pinned', '-created_at')
+        notes_qs = Note.objects(user=request.user, is_deleted__ne=True).order_by('-is_pinned', '-created_at', '-id')
         meta, notes = paginate_queryset(request, notes_qs, cursor_field='created_at')
         serializer = NoteSerializer(notes, many=True)
         
         if meta is not None:
             next_cursor = None
-            if serializer.data:
-                last_note = serializer.data[-1]
-                next_cursor = last_note.get('created_at')
+            if meta.get('has_next') and notes:
+                next_cursor = encode_cursor(note=notes[-1])
             meta['next_cursor'] = next_cursor
             response_data = {
                 **meta,
@@ -569,7 +695,12 @@ class NoteTrashView(APIView):
         except Exception as e:
             print(f"Cache read error: {e}")
 
-        notes_qs = Note.objects(user=request.user, is_deleted=True).order_by('-deleted_at')
+        cutoff = get_current_utc_time() - datetime.timedelta(days=30)
+        notes_qs = Note.objects(
+            user=request.user,
+            is_deleted=True,
+            deleted_at__gte=cutoff
+        ).order_by('-deleted_at')
         meta, notes = paginate_queryset(request, notes_qs, cursor_field='deleted_at')
         serializer = NoteSerializer(notes, many=True)
 
